@@ -9,23 +9,24 @@ const tagName = release.tag_name;
 const windowsAsset = release.assets.find(asset => asset.name.includes("windows") && asset.name.endsWith(".zip"));
 const macAsset = release.assets.find(asset => asset.name.includes("mac") && (asset.name.endsWith(".pkg") || asset.name.endsWith(".dmg")));
 const ubuntuAsset = release.assets.find(asset => asset.name.includes("linux") && (asset.name.endsWith(".deb") || asset.name.endsWith(".AppImage")));
----
 
 <Layout title="Live Background Removal Lite" lang="ja">
   <h1>ライブUNITEツール</h1>
   <div class="links">
     <a
       href={windowsAsset ? windowsAsset.browser_download_url : "#"}
-      >Windows</a
+      aria-disabled={!windowsAsset}
+      >Windows{!windowsAsset ? " (Not available)" : ""}</a
     >
     <a
       href={macAsset ? macAsset.browser_download_url : "#"}
-      >Mac</a
+      aria-disabled={!macAsset}
+      >Mac{!macAsset ? " (Not available)" : ""}</a
     >
     <a
       href={ubuntuAsset ? ubuntuAsset.browser_download_url : "#"}
-      >Ubuntu</a
-    >
+      aria-disabled={!ubuntuAsset}
+      >Ubuntu{!ubuntuAsset ? " (Not available)" : ""}</a
   </div>
   <div class="links">
     <a href=`https://github.com/kaito-tokyo/live-unite-tools/`
