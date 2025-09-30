@@ -1,0 +1,25 @@
+{
+  "dependencies": [
+    "backward-cpp",
+    {
+      "name": "curl",
+      "default-features": false,
+      "features": [
+        "ssl"
+      ],
+      "platform": "(windows & !uwp) | mingw"
+    },
+    {
+      "name": "curl",
+      "default-features": false,
+      "features": [
+        "wolfssl"
+      ],
+      "platform": "(uwp | !windows) & !mingw"
+    },
+    "fmt",
+    "gtest",
+    "ncnn",
+    "stb"
+  ]
+}

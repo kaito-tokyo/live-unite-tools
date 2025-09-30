@@ -34,6 +34,37 @@ if(ENABLE_QT)
   )
 endif()
 
+set(VCPKG_INSTALLED_DIR "${CMAKE_SOURCE_DIR}/vcpkg_installed")
+list(PREPEND CMAKE_PREFIX_PATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+
+find_package(Backward CONFIG)
+find_package(CURL CONFIG REQUIRED)
+find_package(fmt CONFIG REQUIRED)
+find_package(ncnn CONFIG REQUIRED)
+
+target_compile_definitions(
+  ${CMAKE_PROJECT_NAME}
+  PRIVATE PLUGIN_NAME="${CMAKE_PROJECT_NAME}" PLUGIN_VERSION="${CMAKE_PROJECT_VERSION}"
+)
+
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.c)
+target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC OBS::libobs CURL::libcurl fmt::fmt ncnn)
+if(Backward_FOUND)
+  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Backward::Backward)
+  target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_BACKWARD)
+endif()
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE NOMINMAX)
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
+
+if(BUILD_TESTING)
+  enable_testing()
+
+  list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/share/stb")
+
+  find_package(GTest CONFIG REQUIRED)
+  find_package(Stb MODULE REQUIRED)
+
+  add_subdirectory(tests)
+endif()
