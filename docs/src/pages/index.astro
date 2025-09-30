@@ -1,46 +1,40 @@
 ---
+import { joinURL } from "ufo";
+
 import Layout from "../layouts/Layout.astro";
 import { getLatestRelease } from "../lib/github";
 
+import { name } from "../../../buildspec.json";
+const githubURL = `https://github.com/kaito-tokyo/${name}`;
+
 const release = await getLatestRelease();
 const tagName = release.tag_name;
-
-// Find asset download URLs by matching asset names
-const windowsAsset = release.assets.find(
-  (asset) => asset.name.includes("windows") && asset.name.endsWith(".zip"),
-);
-const macAsset = release.assets.find(
-  (asset) =>
-    asset.name.includes("mac") &&
-    (asset.name.endsWith(".pkg") || asset.name.endsWith(".dmg")),
-);
-const ubuntuAsset = release.assets.find(
-  (asset) =>
-    asset.name.includes("linux") &&
-    (asset.name.endsWith(".deb") || asset.name.endsWith(".AppImage")),
-);
 ---
 
-<Layout title="Live Background Removal Lite" lang="ja">
-  <h1>ライブUNITEツール</h1>
+<Layout title="Live Unite Tools" lang="en">
+  <h1>Live Unite Tools</h1>
   <div class="links">
     <a
-      href={windowsAsset ? windowsAsset.browser_download_url : "#"}
-      aria-disabled={!windowsAsset}
-      >Windows{!windowsAsset ? " (Not available)" : ""}</a
+      href={joinURL(
+        githubURL,
+        `releases/download/${tagName}/${name}-${tagName}-windows-x64.zip`,
+      )}>Windows</a
     >
     <a
-      href={macAsset ? macAsset.browser_download_url : "#"}
-      aria-disabled={!macAsset}>Mac{!macAsset ? " (Not available)" : ""}</a
+      href={joinURL(
+        githubURL,
+        `releases/download/${tagName}/${name}-${tagName}-macos-universal.pkg`,
+      )}>Mac</a
     >
     <a
-      href={ubuntuAsset ? ubuntuAsset.browser_download_url : "#"}
-      aria-disabled={!ubuntuAsset}
-      >Ubuntu{!ubuntuAsset ? " (Not available)" : ""}</a
+      href={joinURL(
+        githubURL,
+        `releases/download/${tagName}/${name}-${tagName}-x86_64-linux-gnu.deb`,
+      )}>Ubuntu</a
     >
   </div>
   <div class="links">
-    <a href="https://github.com/kaito-tokyo/live-unite-tools/">GitHub</a>
+    <a href={githubURL}>GitHub</a>
   </div>
 </Layout>
 
