@@ -509,13 +509,13 @@ jobs:
           $NUGET_EXE_PATH = & "${{ env.VCPKG_ROOT }}/vcpkg" fetch nuget | Select-Object -Last 1
           
           & $NUGET_EXE_PATH sources add `
-            -Source "https://nuget.pkg.github.com/kaito-tokyo/index.json" `
+            -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" `
             -StorePasswordInClearText `
             -Name "GitHub" `
-            -UserName "kaito-tokyo" `
+            -UserName "${{ github.repository_owner }}" `
             -Password "${{ secrets.GITHUB_TOKEN }}"
           & $NUGET_EXE_PATH setapikey "${{ secrets.GITHUB_TOKEN }}" `
-            -Source "https://nuget.pkg.github.com/kaito-tokyo/index.json"
+            -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
 
       - name: "Install dependencies from vcpkg"
         shell: bash
