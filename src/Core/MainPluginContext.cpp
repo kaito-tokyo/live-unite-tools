@@ -99,6 +99,11 @@ void MainPluginContext::videoRender()
 
 obs_source_frame *MainPluginContext::filterVideo(struct obs_source_frame *frame)
 try {
+	if (!frame) {
+		logger.error("filterVideo called with null frame");
+		return frame;
+	}
+
 	if (frame->width == 0 || frame->height == 0) {
 		renderingContext.reset();
 		return frame;
