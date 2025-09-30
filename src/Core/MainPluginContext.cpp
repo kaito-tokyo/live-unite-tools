@@ -49,11 +49,13 @@ void MainPluginContext::shutdown() noexcept {}
 
 MainPluginContext::~MainPluginContext() noexcept {}
 
-std::uint32_t MainPluginContext::getWidth() const noexcept {
+std::uint32_t MainPluginContext::getWidth() const noexcept
+{
 	return 0;
 }
 
-std::uint32_t MainPluginContext::getHeight() const noexcept {
+std::uint32_t MainPluginContext::getHeight() const noexcept
+{
 	return 0;
 }
 
