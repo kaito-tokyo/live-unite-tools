@@ -38,7 +38,8 @@ MainPluginContext::MainPluginContext(obs_data_t *settings, obs_source_t *_source
 				     std::shared_future<std::string> _latestVersionFuture,
 				     const BridgeUtils::ILogger &_logger)
 	: source{_source},
-	  logger(_logger)
+	  logger(_logger),
+	  latestVersionFuture{_latestVersionFuture}
 {
 	update(settings);
 }
@@ -49,11 +50,15 @@ void MainPluginContext::shutdown() noexcept {}
 
 MainPluginContext::~MainPluginContext() noexcept {}
 
-std::uint32_t MainPluginContext::getWidth() const noexcept {}
+std::uint32_t MainPluginContext::getWidth() const noexcept {
+	return 0;
+}
 
-std::uint32_t MainPluginContext::getHeight() const noexcept {}
+std::uint32_t MainPluginContext::getHeight() const noexcept {
+	return 0;
+}
 
-void MainPluginContext::getDefaults(obs_data_t *data) {}
+void MainPluginContext::getDefaults(obs_data_t *) {}
 
 obs_properties_t *MainPluginContext::getProperties()
 {
@@ -70,7 +75,7 @@ void MainPluginContext::show() {}
 
 void MainPluginContext::hide() {}
 
-void MainPluginContext::videoTick(float seconds) {}
+void MainPluginContext::videoTick(float) {}
 
 void MainPluginContext::videoRender() {}
 
