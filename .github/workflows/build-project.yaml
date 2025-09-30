@@ -414,13 +414,13 @@ jobs:
         run: |
           NUGET_PATH="$($VCPKG_ROOT/vcpkg fetch nuget | tail -n1)"
           mono "$NUGET_PATH" sources add \
-            -Source "https://nuget.pkg.github.com/kaito-tokyo/index.json" \
+            -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
             -StorePasswordInClearText \
             -Name "GitHub" \
-            -UserName "kaito-tokyo" \
+            -UserName "${{ github.repository_owner }}" \
             -Password "${{ secrets.GITHUB_TOKEN }}"
           mono "$NUGET_PATH" setapikey "${{ secrets.GITHUB_TOKEN }}" \
-            -Source "https://nuget.pkg.github.com/kaito-tokyo/index.json"
+            -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
 
       - name: "Install dependencies from vcpkg"
         run: "$VCPKG_ROOT/vcpkg install --triplet x64-linux-obs"
