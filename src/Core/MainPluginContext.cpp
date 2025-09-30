@@ -51,12 +51,12 @@ MainPluginContext::~MainPluginContext() noexcept {}
 
 std::uint32_t MainPluginContext::getWidth() const noexcept
 {
-	return 0;
+	return renderingContext ? renderingContext->width : 0;
 }
 
 std::uint32_t MainPluginContext::getHeight() const noexcept
 {
-	return 0;
+	return renderingContext ? renderingContext->height : 0;
 }
 
 void MainPluginContext::getDefaults(obs_data_t *) {}
@@ -76,13 +76,45 @@ void MainPluginContext::show() {}
 
 void MainPluginContext::hide() {}
 
-void MainPluginContext::videoTick(float) {}
+void MainPluginContext::videoTick(float seconds)
+{
+	if (!renderingContext) {
+		logger.debug("Rendering context is not initialized, skipping video tick");
+		return;
+	}
 
-void MainPluginContext::videoRender() {}
+	renderingContext->videoTick(seconds);
+}
+
+void MainPluginContext::videoRender()
+{
+	if (!renderingContext) {
+		logger.debug("Rendering context is not initialized, skipping video render");
+		obs_source_skip_video_filter(source);
+		return;
+	}
+
+	renderingContext->videoRender();
+}
 
 obs_source_frame *MainPluginContext::filterVideo(struct obs_source_frame *frame)
 try {
-	return frame;
+	if (frame->width == 0 || frame->height == 0) {
+		renderingContext.reset();
+		return frame;
+	}
+
+	if (!renderingContext || renderingContext->width != frame->width || renderingContext->height != frame->height) {
+		GraphicsContextGuard guard;
+		renderingContext = std::make_shared<RenderingContext>(source, logger, frame->width, frame->height);
+		GsUnique::drain();
+	}
+
+	if (renderingContext) {
+		return renderingContext->filterVideo(frame);
+	} else {
+		return frame;
+	}
 } catch (const std::exception &e) {
 	logger.error("Failed to create rendering context: {}", e.what());
 	return frame;
