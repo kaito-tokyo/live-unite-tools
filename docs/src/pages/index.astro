@@ -4,21 +4,26 @@ import { getLatestRelease } from "../lib/github";
 
 const release = await getLatestRelease();
 const tagName = release.tag_name;
+
+// Find asset download URLs by matching asset names
+const windowsAsset = release.assets.find(asset => asset.name.includes("windows") && asset.name.endsWith(".zip"));
+const macAsset = release.assets.find(asset => asset.name.includes("mac") && (asset.name.endsWith(".pkg") || asset.name.endsWith(".dmg")));
+const ubuntuAsset = release.assets.find(asset => asset.name.includes("linux") && (asset.name.endsWith(".deb") || asset.name.endsWith(".AppImage")));
 ---
 
 <Layout title="Live Background Removal Lite" lang="ja">
   <h1>ライブUNITEツール</h1>
   <div class="links">
     <a
-      href=`https://github.com/kaito-tokyo/live-unite-tools/releases/download/${tagName}/live-unite-tools-${tagName}-windows-x64.zip`
+      href={windowsAsset ? windowsAsset.browser_download_url : "#"}
       >Windows</a
     >
     <a
-      href=`https://github.com/kaito-tokyo/live-unite-tools/releases/download/${tagName}/live-unite-tools-${tagName}-macos-universal.pkg`
+      href={macAsset ? macAsset.browser_download_url : "#"}
       >Mac</a
     >
     <a
-      href=`https://github.com/kaito-tokyo/live-unite-tools/releases/download/${tagName}/live-unite-tools-${tagName}-x86_64-linux-gnu.deb`
+      href={ubuntuAsset ? ubuntuAsset.browser_download_url : "#"}
       >Ubuntu</a
     >
   </div>
