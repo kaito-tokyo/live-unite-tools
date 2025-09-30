@@ -28,6 +28,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "BridgeUtils/ILogger.hpp"
 
+#include "RenderingContext.hpp"
+
 namespace KaitoTokyo {
 namespace LiveUniteTools {
 
@@ -36,6 +38,8 @@ private:
 	obs_source_t *const source;
 	const BridgeUtils::ILogger &logger;
 	std::shared_future<std::string> latestVersionFuture;
+
+	std::shared_ptr<RenderingContext> renderingContext;
 
 public:
 	MainPluginContext(obs_data_t *settings, obs_source_t *source,
