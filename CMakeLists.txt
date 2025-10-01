@@ -41,6 +41,8 @@ find_package(Backward CONFIG)
 find_package(CURL CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(ncnn CONFIG REQUIRED)
+find_package(ncnn CONFIG REQUIRED)
+find_package(unofficial-uwebsockets CONFIG REQUIRED)
 
 target_compile_definitions(
   ${CMAKE_PROJECT_NAME}
@@ -56,7 +58,10 @@ target_sources(
     src/Core/MainPluginContext_c.cpp
     src/plugin-main.c
 )
-target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC OBS::libobs CURL::libcurl fmt::fmt ncnn)
+target_link_libraries(
+  ${CMAKE_PROJECT_NAME}
+  PUBLIC OBS::libobs CURL::libcurl fmt::fmt ncnn unofficial::uwebsockets::uwebsockets
+)
 if(Backward_FOUND)
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Backward::Backward)
   target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_BACKWARD)
