@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -25,6 +26,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <unordered_set>
 
 #include <uwebsockets/App.h>
+#include <uwebsockets/Loop.h>
 
 namespace KaitoTokyo {
 namespace LiveUniteTools {
@@ -33,17 +35,21 @@ class WebSocketServer {
 public:
     static std::shared_ptr<WebSocketServer> getSharedWebSocketServer();
 
-	WebSocketServer();
-	~WebSocketServer();
+    WebSocketServer();
+    ~WebSocketServer();
 
-	void broadcast(const std::string &message);
+    void broadcast(const std::string &message);
 
 private:
-	struct UserData {};
-	std::unordered_set<uWS::WebSocket<false, true, UserData> *> clients;
-	std::mutex mutex;
-	std::thread serverThread;
-	bool running = false;
+    struct UserData {};
+
+    uWS::Loop* loop = nullptr;
+    struct us_listen_socket_t *listenSocket = nullptr;
+
+    std::unordered_set<uWS::WebSocket<false, true, UserData> *> clients;
+    std::mutex clientsMutex;
+    std::thread serverThread;
+    std::atomic<bool> running;
 };
 
 } // namespace LiveUniteTools
