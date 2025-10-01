@@ -48,6 +48,8 @@ target_compile_definitions(
   PRIVATE PLUGIN_NAME="${CMAKE_PROJECT_NAME}" PLUGIN_VERSION="${CMAKE_PROJECT_VERSION}"
 )
 
+target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN)
+
 target_sources(
   ${CMAKE_PROJECT_NAME}
   PRIVATE
@@ -67,7 +69,6 @@ if(Backward_FOUND)
   target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_BACKWARD)
 endif()
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE NOMINMAX)
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
 
