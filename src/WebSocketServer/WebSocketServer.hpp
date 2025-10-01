@@ -17,3 +17,37 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
+
+#include <uwebsockets/App.h>
+
+namespace KaitoTokyo {
+namespace LiveUniteTools {
+
+class WebSocketServer {
+    void start() {
+        const int port = 57491;
+        uWS::App()
+        .ws<void>("/*", {
+            .open = [](auto *ws) {
+                /* Open event */
+            },
+            .message = [](auto *ws, std::string_view message, uWS::OpCode opCode) {
+                /* Message event */
+            },
+            .close = [](auto *ws, int code, std::string_view message) {
+                /* Close event */
+            }
+        })
+        .listen(port, [port](auto* listenSocket) {
+            if (listenSocket) {
+                std::cout << "Listening on port " << port << std::endl;
+            } else {
+                std::cout << "Failed to listen on port " << port << std::endl;
+            }
+        })
+        .run();
+    }
+}
+
+}
+}
