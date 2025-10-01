@@ -33,23 +33,23 @@ namespace LiveUniteTools {
 
 class WebSocketServer {
 public:
-    static std::shared_ptr<WebSocketServer> getSharedWebSocketServer();
+	static std::shared_ptr<WebSocketServer> getSharedWebSocketServer();
 
-    WebSocketServer();
-    ~WebSocketServer();
+	WebSocketServer();
+	~WebSocketServer();
 
-    void broadcast(const std::string &message);
+	void broadcast(const std::string &message);
 
 private:
-    struct UserData {};
+	struct UserData {};
 
-    uWS::Loop* loop = nullptr;
-    struct us_listen_socket_t *listenSocket = nullptr;
+	uWS::Loop *loop = nullptr;
+	struct us_listen_socket_t *listenSocket = nullptr;
 
-    std::unordered_set<uWS::WebSocket<false, true, UserData> *> clients;
-    std::mutex clientsMutex;
-    std::thread serverThread;
-    std::atomic<bool> running;
+	std::unordered_set<uWS::WebSocket<false, true, UserData> *> clients;
+	std::mutex clientsMutex;
+	std::thread serverThread;
+	std::atomic<bool> running;
 };
 
 } // namespace LiveUniteTools

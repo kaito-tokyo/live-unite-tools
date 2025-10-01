@@ -25,83 +25,87 @@ namespace LiveUniteTools {
 
 std::shared_ptr<WebSocketServer> WebSocketServer::getSharedWebSocketServer()
 {
-    static std::mutex mtx;
-    static std::shared_ptr<WebSocketServer> instance;
-    std::lock_guard<std::mutex> lock(mtx);
-    if (!instance) {
-        instance = std::make_shared<WebSocketServer>();
-    }
-    return instance;
+	static std::mutex mtx;
+	static std::shared_ptr<WebSocketServer> instance;
+	std::lock_guard<std::mutex> lock(mtx);
+	if (!instance) {
+		instance = std::make_shared<WebSocketServer>();
+	}
+	return instance;
 }
 
 WebSocketServer::WebSocketServer()
 {
-    std::promise<uWS::Loop*> loopPromise;
-    auto loopFuture = loopPromise.get_future();
+	std::promise<uWS::Loop *> loopPromise;
+	auto loopFuture = loopPromise.get_future();
 
-    serverThread = std::thread([this, p = std::move(loopPromise)]() mutable {
-        uWS::Loop* threadLoop = uWS::Loop::get();
-        p.set_value(threadLoop);
+	serverThread = std::thread([this, p = std::move(loopPromise)]() mutable {
+		uWS::Loop *threadLoop = uWS::Loop::get();
+		p.set_value(threadLoop);
 
-        uWS::App()
-            .ws<UserData>("/", {
-                .open = [this](auto *ws) {
-                    std::lock_guard<std::mutex> lock(clientsMutex);
-                    clients.insert(ws);
-                },
-                .close = [this](auto *ws, int, std::string_view) {
-                    std::lock_guard<std::mutex> lock(clientsMutex);
-                    clients.erase(ws);
-                },
-            })
-            .listen(54834, [this](auto *token) {
-                if (token) {
-                    this->listenSocket = token;
-                    this->running = true;
-                } else {
-                    this->running = false;
-                }
-            })
-            .run();
-    });
+		uWS::App()
+			.ws<UserData>("/", {
+						   .open =
+							   [this](auto *ws) {
+								   std::lock_guard<std::mutex> lock(clientsMutex);
+								   clients.insert(ws);
+							   },
+						   .close =
+							   [this](auto *ws, int, std::string_view) {
+								   std::lock_guard<std::mutex> lock(clientsMutex);
+								   clients.erase(ws);
+							   },
+					   })
+			.listen(54834,
+				[this](auto *token) {
+					if (token) {
+						this->listenSocket = token;
+						this->running = true;
+					} else {
+						this->running = false;
+					}
+				})
+			.run();
+	});
 
-    loop = loopFuture.get();
+	loop = loopFuture.get();
 }
 
 WebSocketServer::~WebSocketServer()
 {
-    if (running.exchange(false)) {
-        if (loop) {
-            loop->defer([this]() {
-                if (listenSocket) {
-                    us_listen_socket_close(0, listenSocket);
-                }
-                std::lock_guard<std::mutex> lock(clientsMutex);
-                for (auto* ws : clients) {
-                    ws->end(1001, "Server shutting down");
-                }
-                clients.clear();
-            });
-        }
-    }
+	if (running.exchange(false)) {
+		if (loop) {
+			loop->defer([this]() {
+				if (listenSocket) {
+					us_listen_socket_close(0, listenSocket);
+				}
+				std::lock_guard<std::mutex> lock(clientsMutex);
+				for (auto *ws : clients) {
+					ws->end(1001, "Server shutting down");
+				}
+				clients.clear();
+			});
+		}
+	}
 
-    if (serverThread.joinable()) {
-        serverThread.join();
-    }
+	if (serverThread.joinable()) {
+		serverThread.join();
+	}
 }
 
 void WebSocketServer::broadcast(const std::string &message)
 {
-    if (!running || !loop) return;
+	if (!running || !loop)
+		return;
 
-    auto messageCopy = std::make_shared<std::string>(message);
+	auto messageCopy = std::make_shared<std::string>(message);
 
-    loop->defer([this, messageCopy]() {
-        std::lock_guard<std::mutex> lock(clientsMutex);
-        for (auto *ws : clients) {
-            ws->send(*messageCopy, uWS::OpCode::TEXT);
-        }
-    });
+	loop->defer([this, messageCopy]() {
+		std::lock_guard<std::mutex> lock(clientsMutex);
+		for (auto *ws : clients) {
+			ws->send(*messageCopy, uWS::OpCode::TEXT);
+		}
+	});
 }
 
 } // namespace LiveUniteTools
