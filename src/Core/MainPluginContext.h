@@ -39,8 +39,6 @@ private:
 	const BridgeUtils::ILogger &logger;
 	std::shared_future<std::string> latestVersionFuture;
 
-	ncnn::Net contextClassifierNet;
-
 	std::shared_ptr<RenderingContext> renderingContext;
 
 public:
