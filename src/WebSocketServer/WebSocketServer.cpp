@@ -43,19 +43,18 @@ WebSocketServer::WebSocketServer()
 		uWS::Loop *threadLoop = uWS::Loop::get();
 		p.set_value(threadLoop);
 
+		uWS::TemplatedApp<false>::WebSocketBehavior<UserData> behavior;
+		behavior.open = [this](auto *ws) {
+			std::lock_guard<std::mutex> lock(clientsMutex);
+			clients.insert(ws);
+		};
+		behavior.close = [this](auto *ws, int, std::string_view) {
+			std::lock_guard<std::mutex> lock(clientsMutex);
+			clients.erase(ws);
+		};
+
 		uWS::App()
-			.ws<UserData>("/", {
-						   .open =
-							   [this](auto *ws) {
-								   std::lock_guard<std::mutex> lock(clientsMutex);
-								   clients.insert(ws);
-							   },
-						   .close =
-							   [this](auto *ws, int, std::string_view) {
-								   std::lock_guard<std::mutex> lock(clientsMutex);
-								   clients.erase(ws);
-							   },
-					   })
+			.ws<UserData>("/", std::move(behavior))
 			.listen(54834,
 				[this](auto *token) {
 					if (token) {
