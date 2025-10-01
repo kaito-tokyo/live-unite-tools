@@ -50,6 +50,7 @@ target_compile_definitions(
 target_sources(
   ${CMAKE_PROJECT_NAME}
   PRIVATE
+    src/EfficientNet/EfficientNet.cpp
     src/Core/RenderingContext.cpp
     src/Core/MainPluginContext.cpp
     src/Core/MainPluginContext_c.cpp

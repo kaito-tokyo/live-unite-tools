@@ -78,12 +78,24 @@ void MainPluginContext::hide() {}
 
 void MainPluginContext::videoTick(float seconds)
 {
-	if (!renderingContext) {
-		logger.debug("Rendering context is not initialized, skipping video tick");
+	obs_source_t *target = obs_filter_get_target(source);
+	uint32_t targetWidth = obs_source_get_width(target);
+	uint32_t targetHeight = obs_source_get_height(target);
+
+	if (targetWidth == 0 || targetHeight == 0) {
+		renderingContext.reset();
 		return;
 	}
 
-	renderingContext->videoTick(seconds);
+	if (!renderingContext || renderingContext->width != targetWidth || renderingContext->height != targetHeight) {
+		GraphicsContextGuard guard;
+		renderingContext = std::make_shared<RenderingContext>(source, logger, targetWidth, targetHeight);
+		GsUnique::drain();
+	}
+
+	if (renderingContext) {
+		renderingContext->videoTick(seconds);
+	}
 }
 
 void MainPluginContext::videoRender()
@@ -99,22 +111,6 @@ void MainPluginContext::videoRender()
 
 obs_source_frame *MainPluginContext::filterVideo(struct obs_source_frame *frame)
 try {
-	if (!frame) {
-		logger.error("filterVideo called with null frame");
-		return frame;
-	}
-
-	if (frame->width == 0 || frame->height == 0) {
-		renderingContext.reset();
-		return frame;
-	}
-
-	if (!renderingContext || renderingContext->width != frame->width || renderingContext->height != frame->height) {
-		GraphicsContextGuard guard;
-		renderingContext = std::make_shared<RenderingContext>(source, logger, frame->width, frame->height);
-		GsUnique::drain();
-	}
-
 	if (renderingContext) {
 		return renderingContext->filterVideo(frame);
 	} else {

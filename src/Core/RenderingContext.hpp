@@ -21,9 +21,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <atomic>
 #include <cstdint>
 
+#include <net.h>
+
 #include "BridgeUtils/AsyncTextureReader.hpp"
 #include "BridgeUtils/GsUnique.hpp"
 #include "BridgeUtils/ILogger.hpp"
+
+#include "../EfficientNet/ContextClassifier.hpp"
 
 namespace KaitoTokyo {
 namespace LiveUniteTools {
@@ -53,6 +57,9 @@ public:
 
 	std::uint64_t lastFrameTimestamp = 0;
 	std::atomic<bool> doesNextVideoRenderReceiveNewFrame = false;
+
+	ncnn::Net contextClassifierNet;
+	ContextClassifier contextClassifier;
 
 public:
 	RenderingContext(obs_source_t *source, const BridgeUtils::ILogger &logger, std::uint32_t width,
