@@ -17,7 +17,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "RenderingContext.hpp"
-#include "../WebSocketServer/IWebSocketSender.hpp"
 
 #include <cmath>
 
@@ -67,7 +66,7 @@ constexpr std::uint32_t EFFICIENTNET_INPUT_WIDTH = 224;
 constexpr std::uint32_t EFFICIENTNET_INPUT_HEIGHT = 224;
 
 RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger, std::uint32_t _width,
-				   std::uint32_t _height, IWebSocketSender *sharedWebSocketSender) // Use shared instance
+				   std::uint32_t _height) // Use shared instance
 	: source(_source),
 	  logger(_logger),
 	  width(_width),
@@ -90,8 +89,7 @@ RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger
 	  }()},
 	  bgrxSceneDetectorInput(make_unique_gs_texture(224, 224, GS_BGRX, 1, nullptr, GS_RENDER_TARGET)),
 	  bgrxSceneDetectorInputReader(224, 224, GS_BGRX),
-	  contextClassifier(contextClassifierNet),
-	  webSocketSender(sharedWebSocketSender) // Store reference to shared instance
+	  contextClassifier(contextClassifierNet)
 {
 	contextClassifierNet.opt.num_threads = 2;
 	contextClassifierNet.opt.use_local_pool_allocator = true;
@@ -161,9 +159,6 @@ void RenderingContext::videoRenderNewFrame()
 	bgrxSceneDetectorInputReader.stage(bgrxSceneDetectorInput.get());
 
 	logger.info("Best: {}", contextClassifier.getInferredClassName());
-	if (webSocketSender) {
-		webSocketSender->send(contextClassifier.getInferredClassName());
-	}
 }
 
 obs_source_frame *RenderingContext::filterVideo(obs_source_frame *frame)
