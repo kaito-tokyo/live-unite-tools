@@ -41,7 +41,6 @@ find_package(Backward CONFIG)
 find_package(CURL CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(ncnn CONFIG REQUIRED)
-find_package(ncnn CONFIG REQUIRED)
 find_package(unofficial-uwebsockets CONFIG REQUIRED)
 
 target_compile_definitions(
