@@ -47,7 +47,7 @@ WebSocketServer::WebSocketServer()
 					clients.erase(ws);
 				},
 			})
-			.listen(9002, [](auto *token) {
+			.listen(54834, [](auto *token) {
 				if (!token) {
 					// Handle listen error
 				}
