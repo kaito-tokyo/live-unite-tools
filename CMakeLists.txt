@@ -52,6 +52,7 @@ target_compile_definitions(
 target_sources(
   ${CMAKE_PROJECT_NAME}
   PRIVATE
+    src/WebSocketServer/WebSocketServer.cpp
     src/EfficientNet/EfficientNet.cpp
     src/Core/RenderingContext.cpp
     src/Core/MainPluginContext.cpp

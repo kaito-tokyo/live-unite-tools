@@ -26,8 +26,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "BridgeUtils/AsyncTextureReader.hpp"
 #include "BridgeUtils/GsUnique.hpp"
 #include "BridgeUtils/ILogger.hpp"
-
 #include "../EfficientNet/ContextClassifier.hpp"
+#include "../WebSocketServer/WebSocketServer.hpp"
 
 namespace KaitoTokyo {
 namespace LiveUniteTools {
@@ -43,6 +43,7 @@ class RenderingContext : public std::enable_shared_from_this<RenderingContext> {
 private:
 	obs_source_t *const source;
 	const BridgeUtils::ILogger &logger;
+	std::shared_ptr<WebSocketServer> webSocketServer;
 
 public:
 	const std::uint32_t width;
@@ -63,7 +64,7 @@ public:
 
 public:
 	RenderingContext(obs_source_t *source, const BridgeUtils::ILogger &logger, std::uint32_t width,
-			 std::uint32_t height);
+			 std::uint32_t height, std::shared_ptr<WebSocketServer> webSocketServer);
 	~RenderingContext() noexcept;
 
 	void videoTick(float seconds);

@@ -89,7 +89,8 @@ void MainPluginContext::videoTick(float seconds)
 
 	if (!renderingContext || renderingContext->width != targetWidth || renderingContext->height != targetHeight) {
 		GraphicsContextGuard guard;
-		renderingContext = std::make_shared<RenderingContext>(source, logger, targetWidth, targetHeight);
+		renderingContext = std::make_shared<RenderingContext>(source, logger, targetWidth, targetHeight,
+								      WebSocketServer::getSharedWebSocketServer());
 		GsUnique::drain();
 	}
 

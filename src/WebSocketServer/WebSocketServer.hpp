@@ -17,3 +17,34 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
+
+#include <memory>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <unordered_set>
+
+#include <uwebsockets/App.h>
+
+namespace KaitoTokyo {
+namespace LiveUniteTools {
+
+class WebSocketServer {
+public:
+    static std::shared_ptr<WebSocketServer> getSharedWebSocketServer();
+
+	WebSocketServer();
+	~WebSocketServer();
+
+	void broadcast(const std::string &message);
+
+private:
+	struct UserData {};
+	std::unordered_set<uWS::WebSocket<false, true, UserData> *> clients;
+	std::mutex mutex;
+	std::thread serverThread;
+	bool running = false;
+};
+
+} // namespace LiveUniteTools
+} // namespace KaitoTokyo
