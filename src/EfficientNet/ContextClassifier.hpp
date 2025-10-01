@@ -40,7 +40,10 @@ private:
 	EfficientNet efficientNet;
 
 public:
-	ContextClassifier(const ncnn::Net &net) : efficientNet(net, contextClassifierClassNames.size()) {}
+	ContextClassifier(const ncnn::Net &net)
+		: efficientNet(net, static_cast<int>(contextClassifierClassNames.size()))
+	{
+	}
 
 	void process(const std::uint8_t *bgraData) { efficientNet.process(bgraData); }
 
