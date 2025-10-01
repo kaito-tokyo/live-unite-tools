@@ -25,42 +25,85 @@ html {
 
 <script src="tsparticles.bundle.js"></script>
 <script>
-const options = {
-  preset: "stars",
-  particles: {
-    number: {
-      value: 150,
-    },
-    move: {
-      speed: 0.5,
-    },
-  },
-  background: {
-    color: "#000000",
-  },
-};
-
-(async () => {
-  await loadFull(tsParticles);
-
-  await tsParticles.load({
-    id: "tsparticles",
-    options: {
-      preset: "stars",
-      particles: {
-        number: {
-          value: 150,
-        },
-        move: {
-          speed: 0.5,
+  const initialOptions = {
+    fpsLimit: 30,
+    particles: {
+      number: {
+        value: 50,
+        density: {
+          enable: true,
         },
       },
-      background: {
-        color: "#000000",
+      color: {
+        value: "#87ceeb",
+      },
+      shape: {
+        type: "circle",
+      },
+      opacity: {
+        value: { min: 0.7, max: 1.0 },
+      },
+      size: {
+        value: { min: 40, max: 200 },
+      },
+      move: {
+        enable: true,
+        speed: 10,
+        direction: "none",
+        random: true,
+        straight: false,
+        out_mode: "bounce",
       },
     },
-  });
-})();
+  };
+
+  const triangleOptions = {
+    fpsLimit: 30,
+    particles: {
+      number: {
+        value: 50,
+        density: {
+          enable: true,
+        },
+      },
+      color: {
+        value: "#ffa500",
+      },
+      shape: {
+        type: "triangle",
+      },
+      opacity: {
+        value: { min: 0.7, max: 1.0 },
+      },
+      size: {
+        value: { min: 40, max: 200 },
+      },
+      move: {
+        enable: true,
+        speed: 10,
+        direction: "none",
+        random: true,
+        straight: false,
+        out_mode: "out",
+      },
+    },
+  };
+
+  (async () => {
+    await loadFull(tsParticles);
+
+    await tsParticles.load({
+      id: "tsparticles",
+      options: initialOptions,
+    });
+
+    document.getElementById("tsparticles").addEventListener("click", () => {
+      tsParticles.load({
+        id: "tsparticles",
+        options: triangleOptions,
+      });
+    });
+  })();
 </script>
 </body>
 </html>
