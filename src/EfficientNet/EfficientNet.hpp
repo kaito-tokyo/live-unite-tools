@@ -65,8 +65,6 @@ public:
 		// Lock-free read
 		return buffers[readableIndex.load(std::memory_order_acquire)];
 	}
-
-private:
 };
 
 } // namespace EfficientNetDetail
