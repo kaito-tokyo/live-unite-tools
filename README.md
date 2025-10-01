@@ -6,7 +6,7 @@
 
 ## 💻 Installation
 
-1.  Go to the [Releases page](https://live-backgroundremoval-lite.kaito.tokyo/) and download the appropriate file for your operating system.
+1.  Go to the [Releases page](https://github.com/kaito-tokyo/live-unite-tools/releases) and download the appropriate file for your operating system.
 
 2.  Follow the instructions for your OS:
     * **For Windows:**
