@@ -16,6 +16,7 @@
 !/vcpkg-triplets
 !.aiexclude
 !.clang-format
+!.editorconfig
 !.gersemirc
 !.gitignore
 !buildspec.json
