@@ -18,6 +18,7 @@
 !.clang-format
 !.editorconfig
 !.gersemirc
+!.gitattributes
 !.gitignore
 !buildspec.json
 !CMakeLists.txt

@@ -88,8 +88,28 @@ RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger
 		  return pos;
 	  }()},
 	  bgrxSceneDetectorInput(make_unique_gs_texture(224, 224, GS_BGRX, 1, nullptr, GS_RENDER_TARGET)),
-	  bgrxSceneDetectorInputReader(224, 224, GS_BGRX)
+	  bgrxSceneDetectorInputReader(224, 224, GS_BGRX),
+	  contextClassifier(contextClassifierNet)
 {
+	contextClassifierNet.opt.num_threads = 2;
+	contextClassifierNet.opt.use_local_pool_allocator = true;
+	contextClassifierNet.opt.openmp_blocktime = 1;
+
+	unique_bfree_char_t paramPath = unique_obs_module_file("models/ContextClassifier.ncnn.param");
+	if (!paramPath) {
+		throw std::runtime_error("Failed to find model param file");
+	}
+	unique_bfree_char_t binPath = unique_obs_module_file("models/ContextClassifier.ncnn.bin");
+	if (!binPath) {
+		throw std::runtime_error("Failed to find model bin file");
+	}
+
+	if (contextClassifierNet.load_param(paramPath.get()) != 0) {
+		throw std::runtime_error("Failed to load model param");
+	}
+	if (contextClassifierNet.load_model(binPath.get()) != 0) {
+		throw std::runtime_error("Failed to load model bin");
+	}
 }
 
 RenderingContext::~RenderingContext() noexcept {}
@@ -109,13 +129,14 @@ void RenderingContext::videoRender()
 void RenderingContext::videoRenderNewFrame()
 {
 	bgrxSceneDetectorInputReader.sync();
+	contextClassifier.process(bgrxSceneDetectorInputReader.getBuffer().data());
 
 	RenderTargetGuard renderTargetGuard;
 	TransformStateGuard transformGuard;
 
 	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 
-	if (!obs_source_process_filter_begin(source, GS_BGRA, OBS_ALLOW_DIRECT_RENDERING)) {
+	if (!obs_source_process_filter_begin(source, GS_BGRX, OBS_ALLOW_DIRECT_RENDERING)) {
 		logger.error("Could not begin processing filter");
 		obs_source_skip_video_filter(source);
 		return;
@@ -136,6 +157,8 @@ void RenderingContext::videoRenderNewFrame()
 	obs_source_process_filter_end(source, effect, pos.right - pos.left, pos.bottom - pos.top);
 
 	bgrxSceneDetectorInputReader.stage(bgrxSceneDetectorInput.get());
+
+	logger.info("Best: {}", contextClassifier.getInferredClassName());
 }
 
 obs_source_frame *RenderingContext::filterVideo(obs_source_frame *frame)
