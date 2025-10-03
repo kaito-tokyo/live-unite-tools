@@ -127,7 +127,9 @@ RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger
 
 RenderingContext::~RenderingContext() noexcept {}
 
-void RenderingContext::videoTick(float) {}
+void RenderingContext::videoTick(float) {
+    doesNextVideoRenderReceiveNewFrame = true;
+}
 
 void RenderingContext::videoRender()
 {
@@ -136,11 +138,17 @@ void RenderingContext::videoRender()
 		videoRenderNewFrame();
 	}
 
-	obs_source_skip_video_filter(source);
+    while (gs_effect_loop(mainEffect.gsEffect.get(), "Draw")) {
+        gs_effect_set_texture(mainEffect.textureImage, bgrxSourceImage.get());
+        gs_draw_sprite(nullptr, 0, width, height);
+    }
+
+	// obs_source_skip_video_filter(source);
 }
 
 void RenderingContext::videoRenderNewFrame()
 {
+    mainEffect.drawSource(bgrxSourceImage, source);
 	// bgrxSceneDetectorInputReader.sync();
 	// r8MatchTimerReader.sync();
 	// contextClassifier.process(bgrxSceneDetectorInputReader.getBuffer().data());
@@ -186,21 +194,10 @@ void RenderingContext::videoRenderNewFrame()
 	// }
 
 	// bgrxSceneDetectorInputReader.stage(bgrxSceneDetectorInput.get());
-
-	logger.info("Best: {}", contextClassifier.getInferredClassName());
 }
 
 obs_source_frame *RenderingContext::filterVideo(obs_source_frame *frame)
 {
-	if (!frame) {
-		return nullptr;
-	}
-
-	if (frame->timestamp > lastFrameTimestamp) {
-		doesNextVideoRenderReceiveNewFrame = true;
-		lastFrameTimestamp = frame->timestamp;
-	}
-
 	return frame;
 }
 

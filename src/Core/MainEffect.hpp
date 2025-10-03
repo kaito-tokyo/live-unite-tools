@@ -92,23 +92,15 @@ public:
 	MainEffect &operator=(const MainEffect &) = delete;
 	MainEffect &operator=(MainEffect &&) = delete;
 
-	void drawSource(BridgeUtils::unique_gs_texture_t &targetTexture, obs_source_t *source)
+	void drawSource(const BridgeUtils::unique_gs_texture_t &, obs_source_t *source) const noexcept
 	{
-		MainEffectDetail::RenderTargetGuard renderTargetGuard;
-		MainEffectDetail::TransformStateGuard transformGuard;
+		// MainEffectDetail::RenderTargetGuard renderTargetGuard;
+		// MainEffectDetail::TransformStateGuard transformGuard;
 
-		std::uint32_t targetWidth = gs_texture_get_width(targetTexture.get());
-		std::uint32_t targetHeight = gs_texture_get_height(targetTexture.get());
-
-		gs_set_viewport(0, 0, static_cast<int>(targetWidth), static_cast<int>(targetHeight));
-		gs_ortho(0.0f, static_cast<float>(targetWidth), 0.0f, static_cast<float>(targetHeight), -100.0f,
-			 100.0f);
-		gs_matrix_identity();
-
-		gs_set_render_target_with_color_space(targetTexture.get(), nullptr, GS_CS_709_EXTENDED);
-		while (gs_effect_loop(obs_get_base_effect(OBS_EFFECT_DEFAULT), "Draw")) {
-			obs_source_video_render(source);
-		}
+        // gs_set_render_target_with_color_space(targetTexture.get(), nullptr, GS_CS_709_EXTENDED);
+        while (gs_effect_loop(gsEffect.get(), "Draw")) {
+            obs_source_video_render(source);
+        }
 	}
 
 	// void convertToGrayscale(unique_gs_texture_t &targetTexture, unique_gs_texture_t &sourceTexture, float x = 0.0f,
