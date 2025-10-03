@@ -20,6 +20,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <cmath>
 
+#include "../WebSocketServer/WebSocketServer.hpp"
+
 using namespace KaitoTokyo::BridgeUtils;
 
 namespace {
@@ -66,7 +68,7 @@ constexpr std::uint32_t EFFICIENTNET_INPUT_WIDTH = 224;
 constexpr std::uint32_t EFFICIENTNET_INPUT_HEIGHT = 224;
 
 RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger, std::uint32_t _width,
-				   std::uint32_t _height)
+				   std::uint32_t _height, std::shared_ptr<WebSocketServer> _webSocketServer)
 	: source(_source),
 	  logger(_logger),
 	  width(_width),
@@ -89,7 +91,8 @@ RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger
 	  }()},
 	  bgrxSceneDetectorInput(make_unique_gs_texture(224, 224, GS_BGRX, 1, nullptr, GS_RENDER_TARGET)),
 	  bgrxSceneDetectorInputReader(224, 224, GS_BGRX),
-	  contextClassifier(contextClassifierNet)
+	  contextClassifier(contextClassifierNet),
+	  webSocketServer(_webSocketServer)
 {
 	contextClassifierNet.opt.num_threads = 2;
 	contextClassifierNet.opt.use_local_pool_allocator = true;
@@ -130,6 +133,10 @@ void RenderingContext::videoRenderNewFrame()
 {
 	bgrxSceneDetectorInputReader.sync();
 	contextClassifier.process(bgrxSceneDetectorInputReader.getBuffer().data());
+	// Send inferred class name via WebSocket
+	if (webSocketServer) {
+		webSocketServer->broadcast(contextClassifier.getInferredClassName());
+	}
 
 	RenderTargetGuard renderTargetGuard;
 	TransformStateGuard transformGuard;

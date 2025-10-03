@@ -41,28 +41,34 @@ find_package(Backward CONFIG)
 find_package(CURL CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(ncnn CONFIG REQUIRED)
+find_package(unofficial-uwebsockets CONFIG REQUIRED)
 
 target_compile_definitions(
   ${CMAKE_PROJECT_NAME}
   PRIVATE PLUGIN_NAME="${CMAKE_PROJECT_NAME}" PLUGIN_VERSION="${CMAKE_PROJECT_VERSION}"
 )
 
+target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN)
+
 target_sources(
   ${CMAKE_PROJECT_NAME}
   PRIVATE
+    src/WebSocketServer/WebSocketServer.cpp
     src/EfficientNet/EfficientNet.cpp
     src/Core/RenderingContext.cpp
     src/Core/MainPluginContext.cpp
     src/Core/MainPluginContext_c.cpp
     src/plugin-main.c
 )
-target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC OBS::libobs CURL::libcurl fmt::fmt ncnn)
+target_link_libraries(
+  ${CMAKE_PROJECT_NAME}
+  PUBLIC OBS::libobs CURL::libcurl fmt::fmt ncnn unofficial::uwebsockets::uwebsockets
+)
 if(Backward_FOUND)
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Backward::Backward)
   target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE HAVE_BACKWARD)
 endif()
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
-target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE NOMINMAX)
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
 
