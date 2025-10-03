@@ -68,11 +68,12 @@ constexpr std::uint32_t EFFICIENTNET_INPUT_WIDTH = 224;
 constexpr std::uint32_t EFFICIENTNET_INPUT_HEIGHT = 224;
 
 RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger, std::uint32_t _width,
-				   std::uint32_t _height, std::shared_ptr<WebSocketServer> _webSocketServer)
+				   std::uint32_t _height, PluginConfig _pluginConfig, std::shared_ptr<WebSocketServer> _webSocketServer)
 	: source(_source),
 	  logger(_logger),
 	  width(_width),
 	  height(_height),
+      pluginConfig(_pluginConfig),
 	  bgrxSourceImage(make_unique_gs_texture(width, height, GS_BGRX, 1, nullptr, GS_RENDER_TARGET)),
 	  efficientNetRoiPosition{[this]() -> RoiPosition {
 		  double widthScale = static_cast<double>(EFFICIENTNET_INPUT_WIDTH) / static_cast<double>(width);
@@ -91,6 +92,12 @@ RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger
 	  }()},
 	  bgrxSceneDetectorInput(make_unique_gs_texture(224, 224, GS_BGRX, 1, nullptr, GS_RENDER_TARGET)),
 	  bgrxSceneDetectorInputReader(224, 224, GS_BGRX),
+      matchTimerX(width * pluginConfig.matchTimerRegion.x),
+      matchTimerY(height * pluginConfig.matchTimerRegion.y),
+      matchTimerWidth(width * pluginConfig.matchTimerRegion.width),
+      matchTimerHeight(height * pluginConfig.matchTimerRegion.height),
+      bgrxMatchTimer(make_unique_gs_texture(matchTimerWidth, matchTimerHeight, GS_BGRX, 1, nullptr, GS_RENDER_TARGET)),
+      bgrxMatchTimerReader(matchTimerWidth, matchTimerHeight, GS_BGRX),
 	  contextClassifier(contextClassifierNet),
 	  webSocketServer(_webSocketServer)
 {
@@ -132,6 +139,7 @@ void RenderingContext::videoRender()
 void RenderingContext::videoRenderNewFrame()
 {
 	bgrxSceneDetectorInputReader.sync();
+    bgrxMatchTimerReader.sync();
 	contextClassifier.process(bgrxSceneDetectorInputReader.getBuffer().data());
 	// Send inferred class name via WebSocket
 	if (webSocketServer) {
@@ -162,6 +170,11 @@ void RenderingContext::videoRenderNewFrame()
 	gs_clear(GS_CLEAR_COLOR, &grayColor, 1.0f, 0);
 
 	obs_source_process_filter_end(source, effect, pos.right - pos.left, pos.bottom - pos.top);
+
+    {
+        RenderTargetGuard renderTargetGuard;
+        TransformStateGuard transformGuard;
+    }
 
 	bgrxSceneDetectorInputReader.stage(bgrxSceneDetectorInput.get());
 

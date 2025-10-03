@@ -18,8 +18,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "MainPluginContext.h"
 
+#include <fstream>
 #include <future>
 #include <stdexcept>
+
+#include <nlohmann/json.hpp>
 
 #include <obs-module.h>
 #include <obs-frontend-api.h>
@@ -29,6 +32,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "BridgeUtils/ObsUnique.hpp"
 
 using namespace KaitoTokyo::BridgeUtils;
+using json = nlohmann::json;
 
 namespace KaitoTokyo {
 namespace LiveUniteTools {
@@ -88,6 +92,8 @@ void MainPluginContext::videoTick(float seconds)
 	}
 
 	if (!renderingContext || renderingContext->width != targetWidth || renderingContext->height != targetHeight) {
+		PluginConfig config = loadPluginConfig();
+
 		GraphicsContextGuard guard;
 		renderingContext = std::make_shared<RenderingContext>(source, logger, targetWidth, targetHeight,
 								      WebSocketServer::getSharedWebSocketServer());
@@ -123,6 +129,12 @@ try {
 } catch (...) {
 	logger.error("Failed to create rendering context: unknown error");
 	return frame;
+}
+
+PluginConfig MainPluginContext::loadPluginConfig()
+{
+	PluginConfig defaultConfig;
+	return defaultConfig;
 }
 
 } // namespace LiveUniteTools

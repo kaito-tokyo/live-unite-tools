@@ -28,6 +28,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "BridgeUtils/ILogger.hpp"
 
+#include "PluginConfig.hpp"
 #include "RenderingContext.hpp"
 
 namespace KaitoTokyo {
@@ -63,6 +64,9 @@ public:
 	void videoTick(float seconds);
 	void videoRender();
 	obs_source_frame *filterVideo(obs_source_frame *frame);
+
+private:
+	PluginConfig loadPluginConfig();
 };
 
 } // namespace LiveUniteTools

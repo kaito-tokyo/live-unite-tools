@@ -26,6 +26,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "BridgeUtils/AsyncTextureReader.hpp"
 #include "BridgeUtils/GsUnique.hpp"
 #include "BridgeUtils/ILogger.hpp"
+
+#include "../Core/PluginConfig.hpp"
 #include "../EfficientNet/ContextClassifier.hpp"
 #include "../WebSocketServer/WebSocketServer.hpp"
 
@@ -48,6 +50,7 @@ private:
 public:
 	const std::uint32_t width;
 	const std::uint32_t height;
+    const PluginConfig pluginConfig;
 
 	const BridgeUtils::unique_gs_texture_t bgrxSourceImage;
 
@@ -55,6 +58,14 @@ public:
 
 	const BridgeUtils::unique_gs_texture_t bgrxSceneDetectorInput;
 	BridgeUtils::AsyncTextureReader bgrxSceneDetectorInputReader;
+
+    const std::uint32_t matchTimerX;
+    const std::uint32_t matchTimerY;
+    const std::uint32_t matchTimerWidth;
+    const std::uint32_t matchTimerHeight;
+
+	const BridgeUtils::unique_gs_texture_t bgrxMatchTimer;
+	BridgeUtils::AsyncTextureReader bgrxMatchTimerReader;
 
 	std::uint64_t lastFrameTimestamp = 0;
 	std::atomic<bool> doesNextVideoRenderReceiveNewFrame = false;
@@ -64,7 +75,7 @@ public:
 
 public:
 	RenderingContext(obs_source_t *source, const BridgeUtils::ILogger &logger, std::uint32_t width,
-			 std::uint32_t height, std::shared_ptr<WebSocketServer> webSocketServer);
+			 std::uint32_t height, PluginConfig config, std::shared_ptr<WebSocketServer> webSocketServer);
 	~RenderingContext() noexcept;
 
 	void videoTick(float seconds);
