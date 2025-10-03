@@ -67,13 +67,16 @@ namespace LiveUniteTools {
 constexpr std::uint32_t EFFICIENTNET_INPUT_WIDTH = 224;
 constexpr std::uint32_t EFFICIENTNET_INPUT_HEIGHT = 224;
 
-RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger, std::uint32_t _width,
-				   std::uint32_t _height, PluginConfig _pluginConfig, std::shared_ptr<WebSocketServer> _webSocketServer)
+RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger, MainEffect &_mainEffect,
+				   std::shared_ptr<WebSocketServer> _webSocketServer, PluginConfig _pluginConfig,
+				   std::uint32_t _width, std::uint32_t _height)
 	: source(_source),
 	  logger(_logger),
+	  mainEffect(_mainEffect),
+	  webSocketServer(std::move(_webSocketServer)),
 	  width(_width),
 	  height(_height),
-      pluginConfig(_pluginConfig),
+	  pluginConfig(_pluginConfig),
 	  bgrxSourceImage(make_unique_gs_texture(width, height, GS_BGRX, 1, nullptr, GS_RENDER_TARGET)),
 	  efficientNetRoiPosition{[this]() -> RoiPosition {
 		  double widthScale = static_cast<double>(EFFICIENTNET_INPUT_WIDTH) / static_cast<double>(width);
@@ -92,14 +95,14 @@ RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger
 	  }()},
 	  bgrxSceneDetectorInput(make_unique_gs_texture(224, 224, GS_BGRX, 1, nullptr, GS_RENDER_TARGET)),
 	  bgrxSceneDetectorInputReader(224, 224, GS_BGRX),
-      matchTimerX(width * pluginConfig.matchTimerRegion.x),
-      matchTimerY(height * pluginConfig.matchTimerRegion.y),
-      matchTimerWidth(width * pluginConfig.matchTimerRegion.width),
-      matchTimerHeight(height * pluginConfig.matchTimerRegion.height),
-      bgrxMatchTimer(make_unique_gs_texture(matchTimerWidth, matchTimerHeight, GS_BGRX, 1, nullptr, GS_RENDER_TARGET)),
-      bgrxMatchTimerReader(matchTimerWidth, matchTimerHeight, GS_BGRX),
-	  contextClassifier(contextClassifierNet),
-	  webSocketServer(_webSocketServer)
+	  matchTimerX(width * pluginConfig.matchTimerRegion.x),
+	  matchTimerY(height * pluginConfig.matchTimerRegion.y),
+	  matchTimerWidth(width * pluginConfig.matchTimerRegion.width),
+	  matchTimerHeight(height * pluginConfig.matchTimerRegion.height),
+	  r8MatchTimer(
+		  make_unique_gs_texture(matchTimerWidth, matchTimerHeight, GS_BGRX, 1, nullptr, GS_RENDER_TARGET)),
+	  r8MatchTimerReader(matchTimerWidth, matchTimerHeight, GS_BGRX),
+	  contextClassifier(contextClassifierNet)
 {
 	contextClassifierNet.opt.num_threads = 2;
 	contextClassifierNet.opt.use_local_pool_allocator = true;
@@ -138,45 +141,51 @@ void RenderingContext::videoRender()
 
 void RenderingContext::videoRenderNewFrame()
 {
-	bgrxSceneDetectorInputReader.sync();
-    bgrxMatchTimerReader.sync();
-	contextClassifier.process(bgrxSceneDetectorInputReader.getBuffer().data());
-	// Send inferred class name via WebSocket
-	if (webSocketServer) {
-		webSocketServer->broadcast(contextClassifier.getInferredClassName());
-	}
+	// bgrxSceneDetectorInputReader.sync();
+	// r8MatchTimerReader.sync();
+	// contextClassifier.process(bgrxSceneDetectorInputReader.getBuffer().data());
+	// // Send inferred class name via WebSocket
+	// if (webSocketServer) {
+	// 	webSocketServer->broadcast(contextClassifier.getInferredClassName());
+	// }
 
-	RenderTargetGuard renderTargetGuard;
-	TransformStateGuard transformGuard;
+	// RenderTargetGuard renderTargetGuard;
+	// TransformStateGuard transformGuard;
 
-	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+	// gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 
-	if (!obs_source_process_filter_begin(source, GS_BGRX, OBS_ALLOW_DIRECT_RENDERING)) {
-		logger.error("Could not begin processing filter");
-		obs_source_skip_video_filter(source);
-		return;
-	}
+	// if (!obs_source_process_filter_begin(source, GS_BGRX, OBS_ALLOW_DIRECT_RENDERING)) {
+	// 	logger.error("Could not begin processing filter");
+	// 	obs_source_skip_video_filter(source);
+	// 	return;
+	// }
 
-	const auto &pos = efficientNetRoiPosition;
-	gs_set_viewport(0, 0, static_cast<int>(EFFICIENTNET_INPUT_WIDTH), static_cast<int>(EFFICIENTNET_INPUT_HEIGHT));
-	gs_ortho(0.0f, static_cast<float>(EFFICIENTNET_INPUT_WIDTH), 0.0f,
-		 static_cast<float>(EFFICIENTNET_INPUT_HEIGHT), -100.0f, 100.0f);
-	gs_matrix_identity();
-	gs_matrix_translate3f(static_cast<float>(pos.left), static_cast<float>(pos.top), 0.0f);
+	// const auto &pos = efficientNetRoiPosition;
+	// gs_set_viewport(0, 0, static_cast<int>(EFFICIENTNET_INPUT_WIDTH), static_cast<int>(EFFICIENTNET_INPUT_HEIGHT));
+	// gs_ortho(0.0f, static_cast<float>(EFFICIENTNET_INPUT_WIDTH), 0.0f,
+	// 	 static_cast<float>(EFFICIENTNET_INPUT_HEIGHT), -100.0f, 100.0f);
+	// gs_matrix_identity();
+	// gs_matrix_translate3f(static_cast<float>(pos.left), static_cast<float>(pos.top), 0.0f);
 
-	gs_set_render_target_with_color_space(bgrxSceneDetectorInput.get(), nullptr, GS_CS_709_EXTENDED);
+	// gs_set_render_target_with_color_space(bgrxSceneDetectorInput.get(), nullptr, GS_CS_709_EXTENDED);
 
-	vec4 grayColor{0.5f, 0.5f, 0.5f, 1.0f};
-	gs_clear(GS_CLEAR_COLOR, &grayColor, 1.0f, 0);
+	// vec4 grayColor{0.5f, 0.5f, 0.5f, 1.0f};
+	// gs_clear(GS_CLEAR_COLOR, &grayColor, 1.0f, 0);
 
-	obs_source_process_filter_end(source, effect, pos.right - pos.left, pos.bottom - pos.top);
+	// obs_source_process_filter_end(source, effect, pos.right - pos.left, pos.bottom - pos.top);
 
-    {
-        RenderTargetGuard renderTargetGuard;
-        TransformStateGuard transformGuard;
-    }
+	// {
+	// 	RenderTargetGuard renderTargetGuard;
+	// 	TransformStateGuard transformGuard;
 
-	bgrxSceneDetectorInputReader.stage(bgrxSceneDetectorInput.get());
+	// 	gs_set_render_target_with_color_space(r8SceneDetectorInput.get(), nullptr, GS_CS_709_EXTENDED);
+	// 	while (gs_effect_loop(mainEffect.gsEffect.get(), "ConvertToGrayscale")) {
+	// 		gs_effect_set_texture(mainEffect.textureImage, r8SceneDetectorInput.get());
+	// 		gs_draw_sprite(r8SceneDetectorInput.get(), 0, 0, 0);
+	// 	}
+	// }
+
+	// bgrxSceneDetectorInputReader.stage(bgrxSceneDetectorInput.get());
 
 	logger.info("Best: {}", contextClassifier.getInferredClassName());
 }

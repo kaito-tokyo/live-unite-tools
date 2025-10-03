@@ -27,6 +27,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "BridgeUtils/GsUnique.hpp"
 #include "BridgeUtils/ILogger.hpp"
 
+#include "../Core/MainEffect.hpp"
 #include "../Core/PluginConfig.hpp"
 #include "../EfficientNet/ContextClassifier.hpp"
 #include "../WebSocketServer/WebSocketServer.hpp"
@@ -45,12 +46,13 @@ class RenderingContext : public std::enable_shared_from_this<RenderingContext> {
 private:
 	obs_source_t *const source;
 	const BridgeUtils::ILogger &logger;
+	MainEffect &mainEffect;
 	std::shared_ptr<WebSocketServer> webSocketServer;
 
 public:
 	const std::uint32_t width;
 	const std::uint32_t height;
-    const PluginConfig pluginConfig;
+	const PluginConfig pluginConfig;
 
 	const BridgeUtils::unique_gs_texture_t bgrxSourceImage;
 
@@ -59,13 +61,13 @@ public:
 	const BridgeUtils::unique_gs_texture_t bgrxSceneDetectorInput;
 	BridgeUtils::AsyncTextureReader bgrxSceneDetectorInputReader;
 
-    const std::uint32_t matchTimerX;
-    const std::uint32_t matchTimerY;
-    const std::uint32_t matchTimerWidth;
-    const std::uint32_t matchTimerHeight;
+	const std::uint32_t matchTimerX;
+	const std::uint32_t matchTimerY;
+	const std::uint32_t matchTimerWidth;
+	const std::uint32_t matchTimerHeight;
 
-	const BridgeUtils::unique_gs_texture_t bgrxMatchTimer;
-	BridgeUtils::AsyncTextureReader bgrxMatchTimerReader;
+	const BridgeUtils::unique_gs_texture_t r8MatchTimer;
+	BridgeUtils::AsyncTextureReader r8MatchTimerReader;
 
 	std::uint64_t lastFrameTimestamp = 0;
 	std::atomic<bool> doesNextVideoRenderReceiveNewFrame = false;
@@ -74,8 +76,9 @@ public:
 	ContextClassifier contextClassifier;
 
 public:
-	RenderingContext(obs_source_t *source, const BridgeUtils::ILogger &logger, std::uint32_t width,
-			 std::uint32_t height, PluginConfig config, std::shared_ptr<WebSocketServer> webSocketServer);
+	RenderingContext(obs_source_t *source, const BridgeUtils::ILogger &logger, MainEffect &mainEffect,
+			 std::shared_ptr<WebSocketServer> webSocketServer, PluginConfig pluginConfig,
+			 std::uint32_t width, std::uint32_t height);
 	~RenderingContext() noexcept;
 
 	void videoTick(float seconds);

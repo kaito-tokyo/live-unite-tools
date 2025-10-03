@@ -66,7 +66,7 @@ public:
 	obs_source_frame *filterVideo(obs_source_frame *frame);
 
 private:
-	PluginConfig loadPluginConfig();
+	std::shared_ptr<RenderingContext> makeRenderingContext(std::uint32_t targetWidth, std::uint32_t targetHeight);
 };
 
 } // namespace LiveUniteTools

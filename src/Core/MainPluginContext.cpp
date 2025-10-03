@@ -31,6 +31,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "BridgeUtils/ILogger.hpp"
 #include "BridgeUtils/ObsUnique.hpp"
 
+#include "Core/MainEffect.hpp"
+
 using namespace KaitoTokyo::BridgeUtils;
 using json = nlohmann::json;
 
@@ -87,16 +89,18 @@ void MainPluginContext::videoTick(float seconds)
 	uint32_t targetHeight = obs_source_get_height(target);
 
 	if (targetWidth == 0 || targetHeight == 0) {
-		renderingContext.reset();
+		targetWidth = obs_source_get_base_width(target);
+		targetHeight = obs_source_get_base_height(target);
+	}
+
+	if (targetWidth == 0 || targetHeight == 0) {
+		logger.debug("Target source has zero width or height, skipping video tick");
 		return;
 	}
 
 	if (!renderingContext || renderingContext->width != targetWidth || renderingContext->height != targetHeight) {
-		PluginConfig config = loadPluginConfig();
-
 		GraphicsContextGuard guard;
-		renderingContext = std::make_shared<RenderingContext>(source, logger, targetWidth, targetHeight,
-								      WebSocketServer::getSharedWebSocketServer());
+		renderingContext = makeRenderingContext(targetWidth, targetHeight);
 		GsUnique::drain();
 	}
 
@@ -131,10 +135,19 @@ try {
 	return frame;
 }
 
-PluginConfig MainPluginContext::loadPluginConfig()
+std::shared_ptr<RenderingContext> MainPluginContext::makeRenderingContext(std::uint32_t targetWidth,
+									  std::uint32_t targetHeight)
 {
+	unique_bfree_char_t mainEffectPath(unique_obs_module_file("effect/main.effect"));
+	unique_gs_effect_t gsMainEffect = make_unique_gs_effect_from_file(mainEffectPath);
+	MainEffect mainEffect(std::move(gsMainEffect));
+
+	std::shared_ptr<WebSocketServer> webSocketServer = WebSocketServer::getSharedWebSocketServer();
+
 	PluginConfig defaultConfig;
-	return defaultConfig;
+
+	return std::make_shared<RenderingContext>(source, logger, mainEffect, std::move(webSocketServer),
+						  std::move(defaultConfig), targetWidth, targetHeight);
 }
 
 } // namespace LiveUniteTools
