@@ -93,31 +93,29 @@ void MainPluginContext::videoTick(float seconds)
 		targetHeight = obs_source_get_base_height(target);
 	}
 
-	if (targetWidth == 0 || targetHeight == 0) {
-		logger.debug("Target source has zero width or height, skipping video tick");
-		return;
-	}
+	if (targetWidth > 0 || targetHeight > 0) {
+		if (!renderingContext || renderingContext->width != targetWidth ||
+		    renderingContext->height != targetHeight) {
+			GraphicsContextGuard guard;
+			renderingContext = makeRenderingContext(targetWidth, targetHeight);
+			GsUnique::drain();
+		}
 
-	if (!renderingContext || renderingContext->width != targetWidth || renderingContext->height != targetHeight) {
-		GraphicsContextGuard guard;
-		renderingContext = makeRenderingContext(targetWidth, targetHeight);
-		GsUnique::drain();
-	}
-
-	if (renderingContext) {
 		renderingContext->videoTick(seconds);
+	} else {
+		logger.debug("Target width or height is zero, skipping video tick");
+		renderingContext.reset();
 	}
 }
 
 void MainPluginContext::videoRender()
 {
-	if (!renderingContext) {
+	if (renderingContext) {
+		renderingContext->videoRender();
+	} else {
 		logger.debug("Rendering context is not initialized, skipping video render");
 		obs_source_skip_video_filter(source);
-		return;
 	}
-
-	renderingContext->videoRender();
 }
 
 obs_source_frame *MainPluginContext::filterVideo(struct obs_source_frame *frame)
@@ -125,6 +123,7 @@ try {
 	if (renderingContext) {
 		return renderingContext->filterVideo(frame);
 	} else {
+		logger.debug("Rendering context is not initialized, skipping video filter");
 		return frame;
 	}
 } catch (const std::exception &e) {
@@ -140,13 +139,12 @@ std::shared_ptr<RenderingContext> MainPluginContext::makeRenderingContext(std::u
 {
 	unique_bfree_char_t mainEffectPath(unique_obs_module_file("effect/main.effect"));
 	unique_gs_effect_t gsMainEffect = make_unique_gs_effect_from_file(mainEffectPath);
-	MainEffect mainEffect(std::move(gsMainEffect));
 
 	std::shared_ptr<WebSocketServer> webSocketServer = WebSocketServer::getSharedWebSocketServer();
 
 	PluginConfig defaultConfig;
 
-	return std::make_shared<RenderingContext>(source, logger, mainEffect, std::move(webSocketServer),
+	return std::make_shared<RenderingContext>(source, logger, std::move(gsMainEffect), std::move(webSocketServer),
 						  std::move(defaultConfig), targetWidth, targetHeight);
 }
 

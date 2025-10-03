@@ -42,11 +42,18 @@ struct RoiPosition {
 	std::uint32_t bottom;
 };
 
+struct RenderingContextRegion {
+	std::uint32_t x;
+	std::uint32_t y;
+	std::uint32_t width;
+	std::uint32_t height;
+};
+
 class RenderingContext : public std::enable_shared_from_this<RenderingContext> {
 private:
 	obs_source_t *const source;
 	const BridgeUtils::ILogger &logger;
-	MainEffect &mainEffect;
+	MainEffect mainEffect;
 	std::shared_ptr<WebSocketServer> webSocketServer;
 
 public:
@@ -54,19 +61,16 @@ public:
 	const std::uint32_t height;
 	const PluginConfig pluginConfig;
 
-	const BridgeUtils::unique_gs_texture_t bgrxSourceImage;
+	BridgeUtils::unique_gs_texture_t bgrxSourceImage;
 
 	const RoiPosition efficientNetRoiPosition;
 
-	const BridgeUtils::unique_gs_texture_t bgrxSceneDetectorInput;
+	BridgeUtils::unique_gs_texture_t bgrxSceneDetectorInput;
 	BridgeUtils::AsyncTextureReader bgrxSceneDetectorInputReader;
 
-	const std::uint32_t matchTimerX;
-	const std::uint32_t matchTimerY;
-	const std::uint32_t matchTimerWidth;
-	const std::uint32_t matchTimerHeight;
+	const RenderingContextRegion matchTimerRegion;
 
-	const BridgeUtils::unique_gs_texture_t r8MatchTimer;
+	BridgeUtils::unique_gs_texture_t r8MatchTimer;
 	BridgeUtils::AsyncTextureReader r8MatchTimerReader;
 
 	std::uint64_t lastFrameTimestamp = 0;
@@ -76,9 +80,9 @@ public:
 	ContextClassifier contextClassifier;
 
 public:
-	RenderingContext(obs_source_t *source, const BridgeUtils::ILogger &logger, MainEffect &mainEffect,
-			 std::shared_ptr<WebSocketServer> webSocketServer, PluginConfig pluginConfig,
-			 std::uint32_t width, std::uint32_t height);
+	RenderingContext(obs_source_t *source, const BridgeUtils::ILogger &logger,
+			 BridgeUtils::unique_gs_effect_t gsMainEffect, std::shared_ptr<WebSocketServer> webSocketServer,
+			 PluginConfig pluginConfig, std::uint32_t width, std::uint32_t height);
 	~RenderingContext() noexcept;
 
 	void videoTick(float seconds);

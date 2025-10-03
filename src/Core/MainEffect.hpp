@@ -38,6 +38,8 @@ inline gs_eparam_t *getEffectParam(const BridgeUtils::unique_gs_effect_t &gsEffe
 	return param;
 }
 
+} // namespace MainEffectDetail
+
 struct TransformStateGuard {
 	TransformStateGuard()
 	{
@@ -73,15 +75,13 @@ struct RenderTargetGuard {
 	}
 };
 
-} // namespace MainEffectDetail
-
 class MainEffect {
 public:
 	const BridgeUtils::unique_gs_effect_t gsEffect;
 
 	gs_eparam_t *const textureImage;
 
-	MainEffect(BridgeUtils::unique_gs_effect_t _gsEffect)
+	explicit MainEffect(BridgeUtils::unique_gs_effect_t _gsEffect)
 		: gsEffect(std::move(_gsEffect)),
 		  textureImage(MainEffectDetail::getEffectParam(gsEffect, "image"))
 	{
@@ -92,37 +92,40 @@ public:
 	MainEffect &operator=(const MainEffect &) = delete;
 	MainEffect &operator=(MainEffect &&) = delete;
 
-	void drawSource(const BridgeUtils::unique_gs_texture_t &, obs_source_t *source) const noexcept
+	void drawSource(const BridgeUtils::unique_gs_texture_t &targetTexture, obs_source_t *source) const noexcept
 	{
-		// MainEffectDetail::RenderTargetGuard renderTargetGuard;
-		// MainEffectDetail::TransformStateGuard transformGuard;
+		RenderTargetGuard renderTargetGuard;
+		TransformStateGuard transformGuard;
 
-        // gs_set_render_target_with_color_space(targetTexture.get(), nullptr, GS_CS_709_EXTENDED);
-        while (gs_effect_loop(gsEffect.get(), "Draw")) {
-            obs_source_video_render(source);
-        }
+		obs_source_t *target = obs_filter_get_target(source);
+
+		gs_set_render_target_with_color_space(targetTexture.get(), nullptr, GS_CS_709_EXTENDED);
+		while (gs_effect_loop(gsEffect.get(), "Draw")) {
+			obs_source_video_render(target);
+		}
 	}
 
-	// void convertToGrayscale(unique_gs_texture_t &targetTexture, unique_gs_texture_t &sourceTexture, float x = 0.0f,
-	// 	  float y = 0.0f, std::uint32_t width = 0, std::uint32_t height = 0)
-	// {
-	// 	MainEffectDetail::RenderTargetGuard renderTargetGuard;
-	// 	MainEffectDetail::TransformStateGuard transformGuard;
+	void convertToGrayscale(BridgeUtils::unique_gs_texture_t &targetTexture,
+				BridgeUtils::unique_gs_texture_t &sourceTexture, float x = 0.0f, float y = 0.0f,
+				std::uint32_t width = 0, std::uint32_t height = 0)
+	{
+		RenderTargetGuard renderTargetGuard;
+		TransformStateGuard transformGuard;
 
-	// 	std::uint32_t targetWidth = gs_texture_get_width(targetTexture.get());
-	// 	std::uint32_t targetHeight = gs_texture_get_height(targetTexture.get());
+		std::uint32_t targetWidth = gs_texture_get_width(targetTexture.get());
+		std::uint32_t targetHeight = gs_texture_get_height(targetTexture.get());
 
-	// 	gs_set_viewport(0, 0, static_cast<int>(targetWidth), static_cast<int>(targetHeight));
-	// 	gs_ortho(0.0f, static_cast<float>(targetWidth), 0.0f, static_cast<float>(targetHeight), -100.0f,
-	// 		 100.0f);
-	// 	gs_matrix_identity();
-	// 	gs_matrix_translate3f(x, y, 0.0f);
+		gs_set_viewport(0, 0, static_cast<int>(targetWidth), static_cast<int>(targetHeight));
+		gs_ortho(0.0f, static_cast<float>(targetWidth), 0.0f, static_cast<float>(targetHeight), -100.0f,
+			 100.0f);
+		gs_matrix_identity();
+		gs_matrix_translate3f(x, y, 0.0f);
 
-	// 	while (gs_effect_loop(gsEffect.get(), "ConvertToGrayscale")) {
-	// 		gs_effect_set_texture(textureImage, sourceTexture.get());
-	// 		gs_draw_sprite(nullptr, 0, width, height);
-	// 	}
-	// }
+		while (gs_effect_loop(gsEffect.get(), "ConvertToGrayscale")) {
+			gs_effect_set_texture(textureImage, sourceTexture.get());
+			gs_draw_sprite(sourceTexture.get(), 0, width, height);
+		}
+	}
 };
 
 } // namespace LiveUniteTools

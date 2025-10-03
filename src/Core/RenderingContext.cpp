@@ -24,55 +24,18 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 using namespace KaitoTokyo::BridgeUtils;
 
-namespace {
-
-struct TransformStateGuard {
-	TransformStateGuard()
-	{
-		gs_viewport_push();
-		gs_projection_push();
-		gs_matrix_push();
-	}
-	~TransformStateGuard()
-	{
-		gs_matrix_pop();
-		gs_projection_pop();
-		gs_viewport_pop();
-	}
-};
-
-struct RenderTargetGuard {
-	gs_texture_t *previousRenderTarget;
-	gs_zstencil_t *previousZStencil;
-	gs_color_space previousColorSpace;
-
-	RenderTargetGuard()
-		: previousRenderTarget(gs_get_render_target()),
-		  previousZStencil(gs_get_zstencil_target()),
-		  previousColorSpace(gs_get_color_space())
-	{
-	}
-
-	~RenderTargetGuard()
-	{
-		gs_set_render_target_with_color_space(previousRenderTarget, previousZStencil, previousColorSpace);
-	}
-};
-
-} // namespace
-
 namespace KaitoTokyo {
 namespace LiveUniteTools {
 
 constexpr std::uint32_t EFFICIENTNET_INPUT_WIDTH = 224;
 constexpr std::uint32_t EFFICIENTNET_INPUT_HEIGHT = 224;
 
-RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger, MainEffect &_mainEffect,
+RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger, unique_gs_effect_t gsMainEffect,
 				   std::shared_ptr<WebSocketServer> _webSocketServer, PluginConfig _pluginConfig,
 				   std::uint32_t _width, std::uint32_t _height)
 	: source(_source),
 	  logger(_logger),
-	  mainEffect(_mainEffect),
+	  mainEffect(std::move(gsMainEffect)),
 	  webSocketServer(std::move(_webSocketServer)),
 	  width(_width),
 	  height(_height),
@@ -95,13 +58,13 @@ RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger
 	  }()},
 	  bgrxSceneDetectorInput(make_unique_gs_texture(224, 224, GS_BGRX, 1, nullptr, GS_RENDER_TARGET)),
 	  bgrxSceneDetectorInputReader(224, 224, GS_BGRX),
-	  matchTimerX(width * pluginConfig.matchTimerRegion.x),
-	  matchTimerY(height * pluginConfig.matchTimerRegion.y),
-	  matchTimerWidth(width * pluginConfig.matchTimerRegion.width),
-	  matchTimerHeight(height * pluginConfig.matchTimerRegion.height),
-	  r8MatchTimer(
-		  make_unique_gs_texture(matchTimerWidth, matchTimerHeight, GS_BGRX, 1, nullptr, GS_RENDER_TARGET)),
-	  r8MatchTimerReader(matchTimerWidth, matchTimerHeight, GS_BGRX),
+	  matchTimerRegion{static_cast<std::uint32_t>(pluginConfig.matchTimerRegion.x * width),
+			   static_cast<std::uint32_t>(pluginConfig.matchTimerRegion.y * height),
+			   static_cast<std::uint32_t>(pluginConfig.matchTimerRegion.width * width) & ~1u,
+			   static_cast<std::uint32_t>(pluginConfig.matchTimerRegion.height * height) & ~1u},
+	  r8MatchTimer(make_unique_gs_texture(matchTimerRegion.width, matchTimerRegion.height, GS_BGRX, 1, nullptr,
+					      GS_RENDER_TARGET)),
+	  r8MatchTimerReader(matchTimerRegion.width, matchTimerRegion.height, GS_BGRX),
 	  contextClassifier(contextClassifierNet)
 {
 	contextClassifierNet.opt.num_threads = 2;
@@ -127,8 +90,9 @@ RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger
 
 RenderingContext::~RenderingContext() noexcept {}
 
-void RenderingContext::videoTick(float) {
-    doesNextVideoRenderReceiveNewFrame = true;
+void RenderingContext::videoTick(float)
+{
+	doesNextVideoRenderReceiveNewFrame = true;
 }
 
 void RenderingContext::videoRender()
@@ -138,17 +102,20 @@ void RenderingContext::videoRender()
 		videoRenderNewFrame();
 	}
 
-    while (gs_effect_loop(mainEffect.gsEffect.get(), "Draw")) {
-        gs_effect_set_texture(mainEffect.textureImage, bgrxSourceImage.get());
-        gs_draw_sprite(nullptr, 0, width, height);
-    }
+	while (gs_effect_loop(mainEffect.gsEffect.get(), "Draw")) {
+		gs_effect_set_texture(mainEffect.textureImage, bgrxSourceImage.get());
+		gs_draw_sprite(bgrxSourceImage.get(), 0, 0, 0);
+	}
 
 	// obs_source_skip_video_filter(source);
 }
 
 void RenderingContext::videoRenderNewFrame()
 {
-    mainEffect.drawSource(bgrxSourceImage, source);
+	mainEffect.drawSource(bgrxSourceImage, source);
+	mainEffect.convertToGrayscale(r8MatchTimer, bgrxSourceImage, static_cast<float>(matchTimerRegion.x),
+				      static_cast<float>(matchTimerRegion.y), matchTimerRegion.width,
+				      matchTimerRegion.height);
 	// bgrxSceneDetectorInputReader.sync();
 	// r8MatchTimerReader.sync();
 	// contextClassifier.process(bgrxSceneDetectorInputReader.getBuffer().data());
