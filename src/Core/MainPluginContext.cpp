@@ -44,14 +44,18 @@ MainPluginContext::MainPluginContext(obs_data_t *settings, obs_source_t *_source
 				     const BridgeUtils::ILogger &_logger)
 	: source{_source},
 	  logger(_logger),
-	  latestVersionFuture{_latestVersionFuture}
+	  latestVersionFuture{_latestVersionFuture},
+	  mainTaskQueue(logger, 1)
 {
 	update(settings);
 }
 
 void MainPluginContext::startup() noexcept {}
 
-void MainPluginContext::shutdown() noexcept {}
+void MainPluginContext::shutdown() noexcept
+{
+	mainTaskQueue.shutdown();
+}
 
 MainPluginContext::~MainPluginContext() noexcept {}
 
@@ -69,7 +73,15 @@ void MainPluginContext::getDefaults(obs_data_t *) {}
 
 obs_properties_t *MainPluginContext::getProperties()
 {
-	return obs_properties_create();
+	obs_properties_t *props = obs_properties_create();
+
+	obs_property_t *captureFpsProp = obs_properties_add_list(props, "captureFps", obs_module_text("captureFps"),
+								 OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(captureFpsProp, "30", 30);
+	obs_property_list_add_int(captureFpsProp, "60", 60);
+	obs_property_list_add_int(captureFpsProp, "120", 120);
+
+	return props;
 }
 
 void MainPluginContext::update(obs_data_t *) {}
@@ -145,7 +157,7 @@ std::shared_ptr<RenderingContext> MainPluginContext::makeRenderingContext(std::u
 	PluginConfig defaultConfig;
 
 	return std::make_shared<RenderingContext>(source, logger, std::move(gsMainEffect), std::move(webSocketServer),
-						  std::move(defaultConfig), targetWidth, targetHeight);
+						  mainTaskQueue, std::move(defaultConfig), targetWidth, targetHeight);
 }
 
 } // namespace LiveUniteTools
