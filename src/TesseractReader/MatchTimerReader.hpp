@@ -29,7 +29,7 @@ namespace LiveUniteTools {
 
 class MatchTimerReader {
 private:
-    tesseract::TessBaseAPI api;
+	tesseract::TessBaseAPI api;
 
 public:
 	MatchTimerReader();

@@ -50,20 +50,20 @@ struct TextureRenderGuard {
 		  previousZStencil(gs_get_zstencil_target()),
 		  previousColorSpace(gs_get_color_space())
 	{
-        gs_set_render_target_with_color_space(targetTexture.get(), nullptr, GS_CS_709_EXTENDED);
+		gs_set_render_target_with_color_space(targetTexture.get(), nullptr, GS_CS_709_EXTENDED);
 
 		gs_viewport_push();
 		gs_projection_push();
 		gs_matrix_push();
 		gs_blend_state_push();
 
-        std::uint32_t targetWidth = gs_texture_get_width(targetTexture.get());
-        std::uint32_t targetHeight = gs_texture_get_height(targetTexture.get());
-        gs_set_viewport(0, 0, static_cast<int>(targetWidth), static_cast<int>(targetHeight));
-        gs_ortho(0.0f, static_cast<float>(targetWidth), 0.0f, static_cast<float>(targetHeight), -100.0f,
-                 100.0f);
-        gs_matrix_identity();
-        gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
+		std::uint32_t targetWidth = gs_texture_get_width(targetTexture.get());
+		std::uint32_t targetHeight = gs_texture_get_height(targetTexture.get());
+		gs_set_viewport(0, 0, static_cast<int>(targetWidth), static_cast<int>(targetHeight));
+		gs_ortho(0.0f, static_cast<float>(targetWidth), 0.0f, static_cast<float>(targetHeight), -100.0f,
+			 100.0f);
+		gs_matrix_identity();
+		gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
 	}
 
 	~TextureRenderGuard()
@@ -73,7 +73,7 @@ struct TextureRenderGuard {
 		gs_projection_pop();
 		gs_viewport_pop();
 
-        gs_set_render_target_with_color_space(previousRenderTarget, previousZStencil, previousColorSpace);
+		gs_set_render_target_with_color_space(previousRenderTarget, previousZStencil, previousColorSpace);
 	}
 };
 
@@ -96,7 +96,7 @@ public:
 
 	void drawSource(BridgeUtils::unique_gs_texture_t &targetTexture, obs_source_t *source) const noexcept
 	{
-        TextureRenderGuard renderTargetGuard(targetTexture);
+		TextureRenderGuard renderTargetGuard(targetTexture);
 
 		obs_source_t *target = obs_filter_get_target(source);
 		gs_set_render_target_with_color_space(targetTexture.get(), nullptr, GS_CS_709_EXTENDED);
@@ -109,7 +109,7 @@ public:
 				BridgeUtils::unique_gs_texture_t &sourceTexture, float x = 0.0f, float y = 0.0f,
 				std::uint32_t width = 0, std::uint32_t height = 0)
 	{
-        TextureRenderGuard renderTargetGuard(targetTexture);
+		TextureRenderGuard renderTargetGuard(targetTexture);
 
 		gs_matrix_translate3f(-x, -y, 0.0f);
 
@@ -120,10 +120,10 @@ public:
 	}
 
 	void convertToHSV(BridgeUtils::unique_gs_texture_t &targetTexture,
-				BridgeUtils::unique_gs_texture_t &sourceTexture, float x = 0.0f, float y = 0.0f,
-				std::uint32_t width = 0, std::uint32_t height = 0)
+			  BridgeUtils::unique_gs_texture_t &sourceTexture, float x = 0.0f, float y = 0.0f,
+			  std::uint32_t width = 0, std::uint32_t height = 0)
 	{
-        TextureRenderGuard renderTargetGuard(targetTexture);
+		TextureRenderGuard renderTargetGuard(targetTexture);
 
 		gs_matrix_translate3f(-x, -y, 0.0f);
 
