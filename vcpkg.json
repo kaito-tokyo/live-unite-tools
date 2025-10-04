@@ -19,19 +19,27 @@
     },
     "fmt",
     "gtest",
+    "leptonica",
+    {
+      "name": "libuv",
+      "platform": "windows | android"
+    },
     "ncnn",
+    "nlohmann-json",
     {
       "name": "opencv4",
       "default-features": false
     },
     "stb",
     "tesseract",
+    "usockets",
     {
       "name": "uwebsockets",
       "default-features": false,
       "features": [
         "zlib"
       ]
-    }
+    },
+    "zlib"
   ]
 }

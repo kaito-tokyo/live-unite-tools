@@ -10,18 +10,17 @@ vcpkg_from_github(
 )
 vcpkg_find_acquire_program(PKGCONFIG)
 
+string(APPEND VCPKG_C_FLAGS " -DTESSERACT_DISABLE_DEBUG_FONTS")
+string(APPEND VCPKG_CXX_FLAGS " -DTESSERACT_DISABLE_DEBUG_FONTS")
+
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}"
     OPTIONS
         -DBUILD_TRAINING_TOOLS=OFF
         -DDISABLE_ARCHIVE=ON
         -DDISABLE_CURL=ON
-        -DUSE_SYSTEM_ICU=True
-        -DCMAKE_REQUIRE_FIND_PACKAGE_Leptonica=ON
-        -DCMAKE_DISABLE_FIND_PACKAGE_OpenCL=ON
-        -DLeptonica_DIR=YES
+        -DUSE_SYSTEM_ICU=ON
         -DSW_BUILD=OFF
-        -DLEPT_TIFF_RESULT=ON
         "-DPKG_CONFIG_EXECUTABLE=${PKGCONFIG}"
     MAYBE_UNUSED_VARIABLES
         CMAKE_DISABLE_FIND_PACKAGE_OpenCL
@@ -32,14 +31,14 @@ vcpkg_copy_pdbs()
 
 vcpkg_cmake_config_fixup(CONFIG_PATH lib/cmake/tesseract)
 
-vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/share/tesseract/TesseractConfig.cmake"
-    "find_dependency(Leptonica)"
-[[
-find_dependency(CURL)
-find_dependency(Leptonica)
-find_dependency(LibArchive)
-]]
-)
+# vcpkg_replace_string("${CURRENT_PACKAGES_DIR}/share/tesseract/TesseractConfig.cmake"
+#     "find_dependency(Leptonica)"
+# [[
+# find_dependency(CURL)
+# find_dependency(Leptonica)
+# find_dependency(LibArchive)
+# ]]
+# )
 
 vcpkg_copy_tools(TOOL_NAMES tesseract AUTO_CLEAN)
 vcpkg_fixup_pkgconfig()

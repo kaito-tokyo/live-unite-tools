@@ -21,45 +21,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cmath>
 
 #include "../WebSocketServer/WebSocketServer.hpp"
+#include "../TesseractReader/MatchTimerReader.hpp"
 
 using namespace KaitoTokyo::BridgeUtils;
-
-namespace {
-
-struct TransformStateGuard {
-	TransformStateGuard()
-	{
-		gs_viewport_push();
-		gs_projection_push();
-		gs_matrix_push();
-	}
-	~TransformStateGuard()
-	{
-		gs_matrix_pop();
-		gs_projection_pop();
-		gs_viewport_pop();
-	}
-};
-
-struct RenderTargetGuard {
-	gs_texture_t *previousRenderTarget;
-	gs_zstencil_t *previousZStencil;
-	gs_color_space previousColorSpace;
-
-	RenderTargetGuard()
-		: previousRenderTarget(gs_get_render_target()),
-		  previousZStencil(gs_get_zstencil_target()),
-		  previousColorSpace(gs_get_color_space())
-	{
-	}
-
-	~RenderTargetGuard()
-	{
-		gs_set_render_target_with_color_space(previousRenderTarget, previousZStencil, previousColorSpace);
-	}
-};
-
-} // namespace
 
 namespace KaitoTokyo {
 namespace LiveUniteTools {
@@ -67,12 +31,16 @@ namespace LiveUniteTools {
 constexpr std::uint32_t EFFICIENTNET_INPUT_WIDTH = 224;
 constexpr std::uint32_t EFFICIENTNET_INPUT_HEIGHT = 224;
 
-RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger, std::uint32_t _width,
-				   std::uint32_t _height, std::shared_ptr<WebSocketServer> _webSocketServer)
+RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger, unique_gs_effect_t gsMainEffect,
+				   std::shared_ptr<WebSocketServer> _webSocketServer, PluginConfig _pluginConfig,
+				   std::uint32_t _width, std::uint32_t _height)
 	: source(_source),
 	  logger(_logger),
+	  mainEffect(std::move(gsMainEffect)),
+	  webSocketServer(std::move(_webSocketServer)),
 	  width(_width),
 	  height(_height),
+	  pluginConfig(_pluginConfig),
 	  bgrxSourceImage(make_unique_gs_texture(width, height, GS_BGRX, 1, nullptr, GS_RENDER_TARGET)),
 	  efficientNetRoiPosition{[this]() -> RoiPosition {
 		  double widthScale = static_cast<double>(EFFICIENTNET_INPUT_WIDTH) / static_cast<double>(width);
@@ -91,8 +59,14 @@ RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger
 	  }()},
 	  bgrxSceneDetectorInput(make_unique_gs_texture(224, 224, GS_BGRX, 1, nullptr, GS_RENDER_TARGET)),
 	  bgrxSceneDetectorInputReader(224, 224, GS_BGRX),
-	  contextClassifier(contextClassifierNet),
-	  webSocketServer(_webSocketServer)
+	  matchTimerRegion{static_cast<std::uint32_t>(pluginConfig.matchTimerRegion.x * width),
+			   static_cast<std::uint32_t>(pluginConfig.matchTimerRegion.y * height),
+			   static_cast<std::uint32_t>(pluginConfig.matchTimerRegion.width * width) & ~1u,
+			   static_cast<std::uint32_t>(pluginConfig.matchTimerRegion.height * height) & ~1u},
+	  hsvxMatchTimer(make_unique_gs_texture(matchTimerRegion.width, matchTimerRegion.height, GS_BGRX, 1, nullptr,
+						GS_RENDER_TARGET)),
+	  hsvxMatchTimerReader(matchTimerRegion.width, matchTimerRegion.height, GS_BGRX),
+	  contextClassifier(contextClassifierNet)
 {
 	contextClassifierNet.opt.num_threads = 2;
 	contextClassifierNet.opt.use_local_pool_allocator = true;
@@ -117,7 +91,10 @@ RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger
 
 RenderingContext::~RenderingContext() noexcept {}
 
-void RenderingContext::videoTick(float) {}
+void RenderingContext::videoTick(float)
+{
+	doesNextVideoRenderReceiveNewFrame = true;
+}
 
 void RenderingContext::videoRender()
 {
@@ -127,58 +104,44 @@ void RenderingContext::videoRender()
 	}
 
 	obs_source_skip_video_filter(source);
+
+	while (gs_effect_loop(mainEffect.gsEffect.get(), "Draw")) {
+		gs_effect_set_texture(mainEffect.textureImage, hsvxMatchTimer.get());
+		gs_draw_sprite(hsvxMatchTimer.get(), 0, 0, 0);
+	}
+
+	const int sizes[]{static_cast<int>(hsvxMatchTimerReader.getHeight()),
+			  static_cast<int>(hsvxMatchTimerReader.getWidth())};
+	cv::Mat hsvx_image(2, sizes, CV_8UC4, static_cast<void *>(hsvxMatchTimerReader.getBuffer().data()));
+
+	cv::Mat v_channel_image;
+	cv::extractChannel(hsvx_image, v_channel_image, 2);
+
+	cv::Mat binary_image(v_channel_image);
+	// cv::adaptiveThreshold(v_channel_image, binary_image, 255,
+	//                       cv::ADAPTIVE_THRESH_GAUSSIAN_C,
+	//                       cv::THRESH_BINARY, // 白背景に黒文字なので反転は不要
+	//                       11, 2);
+
+	MatchTimerReader matchTimerReader;
+	std::string matchTime = matchTimerReader.read(binary_image);
+
+	logger.info("Match Time: {}", matchTime);
 }
 
 void RenderingContext::videoRenderNewFrame()
 {
-	bgrxSceneDetectorInputReader.sync();
-	contextClassifier.process(bgrxSceneDetectorInputReader.getBuffer().data());
-	// Send inferred class name via WebSocket
-	if (webSocketServer) {
-		webSocketServer->broadcast(contextClassifier.getInferredClassName());
-	}
+	hsvxMatchTimerReader.sync();
 
-	RenderTargetGuard renderTargetGuard;
-	TransformStateGuard transformGuard;
+	mainEffect.drawSource(bgrxSourceImage, source);
+	mainEffect.convertToHSV(hsvxMatchTimer, bgrxSourceImage, static_cast<float>(matchTimerRegion.x),
+				static_cast<float>(matchTimerRegion.y));
 
-	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-
-	if (!obs_source_process_filter_begin(source, GS_BGRX, OBS_ALLOW_DIRECT_RENDERING)) {
-		logger.error("Could not begin processing filter");
-		obs_source_skip_video_filter(source);
-		return;
-	}
-
-	const auto &pos = efficientNetRoiPosition;
-	gs_set_viewport(0, 0, static_cast<int>(EFFICIENTNET_INPUT_WIDTH), static_cast<int>(EFFICIENTNET_INPUT_HEIGHT));
-	gs_ortho(0.0f, static_cast<float>(EFFICIENTNET_INPUT_WIDTH), 0.0f,
-		 static_cast<float>(EFFICIENTNET_INPUT_HEIGHT), -100.0f, 100.0f);
-	gs_matrix_identity();
-	gs_matrix_translate3f(static_cast<float>(pos.left), static_cast<float>(pos.top), 0.0f);
-
-	gs_set_render_target_with_color_space(bgrxSceneDetectorInput.get(), nullptr, GS_CS_709_EXTENDED);
-
-	vec4 grayColor{0.5f, 0.5f, 0.5f, 1.0f};
-	gs_clear(GS_CLEAR_COLOR, &grayColor, 1.0f, 0);
-
-	obs_source_process_filter_end(source, effect, pos.right - pos.left, pos.bottom - pos.top);
-
-	bgrxSceneDetectorInputReader.stage(bgrxSceneDetectorInput.get());
-
-	logger.info("Best: {}", contextClassifier.getInferredClassName());
+	hsvxMatchTimerReader.stage(hsvxMatchTimer.get());
 }
 
 obs_source_frame *RenderingContext::filterVideo(obs_source_frame *frame)
 {
-	if (!frame) {
-		return nullptr;
-	}
-
-	if (frame->timestamp > lastFrameTimestamp) {
-		doesNextVideoRenderReceiveNewFrame = true;
-		lastFrameTimestamp = frame->timestamp;
-	}
-
 	return frame;
 }
 

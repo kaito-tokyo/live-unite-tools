@@ -41,6 +41,9 @@ find_package(Backward CONFIG)
 find_package(CURL CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(ncnn CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(Tesseract CONFIG REQUIRED)
 find_package(unofficial-uwebsockets CONFIG REQUIRED)
 
 target_compile_definitions(
@@ -55,6 +58,7 @@ target_sources(
   PRIVATE
     src/WebSocketServer/WebSocketServer.cpp
     src/EfficientNet/EfficientNet.cpp
+    src/TesseractReader/MatchTimerReader.cpp
     src/Core/RenderingContext.cpp
     src/Core/MainPluginContext.cpp
     src/Core/MainPluginContext_c.cpp
@@ -62,7 +66,15 @@ target_sources(
 )
 target_link_libraries(
   ${CMAKE_PROJECT_NAME}
-  PUBLIC OBS::libobs CURL::libcurl fmt::fmt ncnn unofficial::uwebsockets::uwebsockets
+  PUBLIC
+    OBS::libobs
+    CURL::libcurl
+    fmt::fmt
+    ncnn
+    nlohmann_json::nlohmann_json
+    opencv_core
+    Tesseract::libtesseract
+    unofficial::uwebsockets::uwebsockets
 )
 if(Backward_FOUND)
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Backward::Backward)

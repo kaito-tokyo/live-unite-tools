@@ -26,6 +26,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "BridgeUtils/AsyncTextureReader.hpp"
 #include "BridgeUtils/GsUnique.hpp"
 #include "BridgeUtils/ILogger.hpp"
+
+#include "../Core/MainEffect.hpp"
+#include "../Core/PluginConfig.hpp"
 #include "../EfficientNet/ContextClassifier.hpp"
 #include "../WebSocketServer/WebSocketServer.hpp"
 
@@ -39,22 +42,36 @@ struct RoiPosition {
 	std::uint32_t bottom;
 };
 
+struct RenderingContextRegion {
+	std::uint32_t x;
+	std::uint32_t y;
+	std::uint32_t width;
+	std::uint32_t height;
+};
+
 class RenderingContext : public std::enable_shared_from_this<RenderingContext> {
 private:
 	obs_source_t *const source;
 	const BridgeUtils::ILogger &logger;
+	MainEffect mainEffect;
 	std::shared_ptr<WebSocketServer> webSocketServer;
 
 public:
 	const std::uint32_t width;
 	const std::uint32_t height;
+	const PluginConfig pluginConfig;
 
-	const BridgeUtils::unique_gs_texture_t bgrxSourceImage;
+	BridgeUtils::unique_gs_texture_t bgrxSourceImage;
 
 	const RoiPosition efficientNetRoiPosition;
 
-	const BridgeUtils::unique_gs_texture_t bgrxSceneDetectorInput;
+	BridgeUtils::unique_gs_texture_t bgrxSceneDetectorInput;
 	BridgeUtils::AsyncTextureReader bgrxSceneDetectorInputReader;
+
+	const RenderingContextRegion matchTimerRegion;
+
+	BridgeUtils::unique_gs_texture_t hsvxMatchTimer;
+	BridgeUtils::AsyncTextureReader hsvxMatchTimerReader;
 
 	std::uint64_t lastFrameTimestamp = 0;
 	std::atomic<bool> doesNextVideoRenderReceiveNewFrame = false;
@@ -63,8 +80,9 @@ public:
 	ContextClassifier contextClassifier;
 
 public:
-	RenderingContext(obs_source_t *source, const BridgeUtils::ILogger &logger, std::uint32_t width,
-			 std::uint32_t height, std::shared_ptr<WebSocketServer> webSocketServer);
+	RenderingContext(obs_source_t *source, const BridgeUtils::ILogger &logger,
+			 BridgeUtils::unique_gs_effect_t gsMainEffect, std::shared_ptr<WebSocketServer> webSocketServer,
+			 PluginConfig pluginConfig, std::uint32_t width, std::uint32_t height);
 	~RenderingContext() noexcept;
 
 	void videoTick(float seconds);
