@@ -64,7 +64,7 @@ RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger
 			   static_cast<std::uint32_t>(pluginConfig.matchTimerRegion.width * width) & ~1u,
 			   static_cast<std::uint32_t>(pluginConfig.matchTimerRegion.height * height) & ~1u},
 	  hsvxMatchTimer(make_unique_gs_texture(matchTimerRegion.width, matchTimerRegion.height, GS_BGRX, 1, nullptr,
-					      GS_RENDER_TARGET)),
+						GS_RENDER_TARGET)),
 	  hsvxMatchTimerReader(matchTimerRegion.width, matchTimerRegion.height, GS_BGRX),
 	  contextClassifier(contextClassifierNet)
 {
@@ -110,33 +110,34 @@ void RenderingContext::videoRender()
 		gs_draw_sprite(hsvxMatchTimer.get(), 0, 0, 0);
 	}
 
+	const int sizes[]{static_cast<int>(hsvxMatchTimerReader.getWidth()),
+			  static_cast<int>(hsvxMatchTimerReader.getHeight())};
+	cv::Mat hsvx_image(2, sizes, CV_8UC4, static_cast<void *>(hsvxMatchTimerReader.getBuffer().data()));
 
-    const int sizes[]{static_cast<int>(hsvxMatchTimerReader.getWidth()), static_cast<int>(hsvxMatchTimerReader.getHeight())};
-    cv::Mat hsvx_image(2, sizes, CV_8UC4, static_cast<void*>(hsvxMatchTimerReader.getBuffer().data()));
+	cv::Mat v_channel_image;
+	cv::extractChannel(hsvx_image, v_channel_image, 2);
 
-    cv::Mat v_channel_image;
-    cv::extractChannel(hsvx_image, v_channel_image, 2);
+	cv::Mat binary_image(v_channel_image);
+	// cv::adaptiveThreshold(v_channel_image, binary_image, 255,
+	//                       cv::ADAPTIVE_THRESH_GAUSSIAN_C,
+	//                       cv::THRESH_BINARY, // 白背景に黒文字なので反転は不要
+	//                       11, 2);
 
-    cv::Mat binary_image(v_channel_image);
-    // cv::adaptiveThreshold(v_channel_image, binary_image, 255,
-    //                       cv::ADAPTIVE_THRESH_GAUSSIAN_C,
-    //                       cv::THRESH_BINARY, // 白背景に黒文字なので反転は不要
-    //                       11, 2);
+	MatchTimerReader matchTimerReader;
+	std::string matchTime = matchTimerReader.read(binary_image);
 
-    MatchTimerReader matchTimerReader;
-    std::string matchTime = matchTimerReader.read(binary_image);
-
-    logger.info("Match Time: {}", matchTime);
+	logger.info("Match Time: {}", matchTime);
 }
 
 void RenderingContext::videoRenderNewFrame()
 {
-    hsvxMatchTimerReader.sync();
+	hsvxMatchTimerReader.sync();
 
 	mainEffect.drawSource(bgrxSourceImage, source);
-	mainEffect.convertToHSV(hsvxMatchTimer, bgrxSourceImage, matchTimerRegion.x, matchTimerRegion.y);
+	mainEffect.convertToHSV(hsvxMatchTimer, bgrxSourceImage, static_cast<float>(matchTimerRegion.x),
+				static_cast<float>(matchTimerRegion.y));
 
-    hsvxMatchTimerReader.stage(hsvxMatchTimer.get());
+	hsvxMatchTimerReader.stage(hsvxMatchTimer.get());
 }
 
 obs_source_frame *RenderingContext::filterVideo(obs_source_frame *frame)

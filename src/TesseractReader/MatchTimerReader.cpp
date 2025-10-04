@@ -25,24 +25,28 @@ using namespace KaitoTokyo::BridgeUtils;
 namespace KaitoTokyo {
 namespace LiveUniteTools {
 
-MatchTimerReader::MatchTimerReader() {
-    unique_bfree_char_t tessdataPath = unique_obs_module_file("tessdata");
-    if (api.Init(tessdataPath.get(), "eng")) {
-        throw std::runtime_error("Could not initialize tesseract.");
-    }
+MatchTimerReader::MatchTimerReader()
+{
+	unique_bfree_char_t tessdataPath = unique_obs_module_file("tessdata");
+	if (api.Init(tessdataPath.get(), "eng")) {
+		throw std::runtime_error("Could not initialize tesseract.");
+	}
 
-    api.SetPageSegMode(tesseract::PSM_SINGLE_LINE);
-    api.SetVariable("tessedit_char_whitelist", "0123456789:");
+	api.SetPageSegMode(tesseract::PSM_SINGLE_LINE);
+	api.SetVariable("tessedit_char_whitelist", "0123456789:");
 }
 
-MatchTimerReader::~MatchTimerReader() noexcept try {
-    api.End();
+MatchTimerReader::~MatchTimerReader() noexcept
+try {
+	api.End();
 } catch (...) {
 }
 
-std::string MatchTimerReader::read(cv::Mat &lumaData) {
-    api.SetImage(lumaData.data, lumaData.cols, lumaData.rows, 1, lumaData.step);
-    return api.GetUTF8Text();
+std::string MatchTimerReader::read(cv::Mat &lumaData)
+{
+	api.SetImage(lumaData.data, static_cast<int>(lumaData.cols), static_cast<int>(lumaData.rows), 1,
+		     static_cast<int>(lumaData.step));
+	return api.GetUTF8Text();
 }
 
 } // namespace LiveUniteTools
