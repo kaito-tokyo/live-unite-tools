@@ -119,22 +119,23 @@ void RenderingContext::videoRender()
 	cv::Mat v_channel_image;
 	cv::extractChannel(hsvx_image, v_channel_image, 2);
 
-    cv::Mat blurred_image;
-    cv::GaussianBlur(v_channel_image, blurred_image, cv::Size(3, 3), 0);
+	cv::Mat blurred_image;
+	cv::GaussianBlur(v_channel_image, blurred_image, cv::Size(3, 3), 0);
 
-    cv::Mat inverted_image;
-    cv::bitwise_not(blurred_image, inverted_image);
+	cv::Mat inverted_image;
+	cv::bitwise_not(blurred_image, inverted_image);
 
-    cv::Mat binary_image;
-    cv::adaptiveThreshold(inverted_image, binary_image, 255,
-                      cv::ADAPTIVE_THRESH_GAUSSIAN_C, // ガウシアンで重み付け
-                      cv::THRESH_BINARY,              // 白を背景、黒を文字に
-                      11,                             // ブロックサイズ (奇数である必要あり。調整推奨)
-                      2);                             // 定数C (閾値から引かれる値。調整推奨)
+	cv::Mat binary_image;
+	cv::adaptiveThreshold(inverted_image, binary_image, 255,
+			      cv::ADAPTIVE_THRESH_GAUSSIAN_C, // ガウシアンで重み付け
+			      cv::THRESH_BINARY,              // 白を背景、黒を文字に
+			      11,                             // ブロックサイズ (奇数である必要あり。調整推奨)
+			      2);                             // 定数C (閾値から引かれる値。調整推奨)
 
-    const std::uint8_t *planarData[] = {inverted_image.data};
+	const std::uint8_t *planarData[] = {inverted_image.data};
 
-    unique_gs_texture_t r8MatchTimerDebug = make_unique_gs_texture(matchTimerRegion.width, matchTimerRegion.height, GS_R8, 1, planarData, 0);
+	unique_gs_texture_t r8MatchTimerDebug =
+		make_unique_gs_texture(matchTimerRegion.width, matchTimerRegion.height, GS_R8, 1, planarData, 0);
 
 	while (gs_effect_loop(mainEffect.gsEffect.get(), "Draw")) {
 		gs_effect_set_texture(mainEffect.textureImage, r8MatchTimerDebug.get());
