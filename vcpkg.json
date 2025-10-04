@@ -20,6 +20,7 @@
     "fmt",
     "gtest",
     "leptonica",
+    "libpng",
     {
       "name": "libuv",
       "platform": "windows | android"

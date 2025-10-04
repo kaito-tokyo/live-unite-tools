@@ -5,6 +5,7 @@
   "homepage": "https://github.com/DanBloomberg/leptonica",
   "license": null,
   "dependencies": [
+    "libpng",
     {
       "name": "vcpkg-cmake",
       "host": true

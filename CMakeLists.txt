@@ -73,6 +73,7 @@ target_link_libraries(
     ncnn
     nlohmann_json::nlohmann_json
     opencv_core
+    opencv_imgproc
     Tesseract::libtesseract
     unofficial::uwebsockets::uwebsockets
 )

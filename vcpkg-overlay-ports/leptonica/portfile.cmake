@@ -16,7 +16,7 @@ vcpkg_cmake_configure(
         -DSW_BUILD=OFF
         "-DPKG_CONFIG_EXECUTABLE=${PKGCONFIG}"
         -DENABLE_ZLIB=OFF
-        -DENABLE_PNG=OFF
+        -DENABLE_PNG=ON
         -DENABLE_GIF=OFF
         -DENABLE_JPEG=OFF
         -DENABLE_TIFF=OFF

@@ -61,7 +61,11 @@ float4 PSConvertToHSV(VertInOut vert_in) : TARGET
     float d = q.x - min(q.w, q.y);
     float e = 1.0e-10;
 
-    return float4(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x, 1.0f);
+    float h = abs(q.z + (q.w - q.y) / (6.0 * d + e));
+    float s = d / (q.x + e);
+    float v = q.x;
+
+    return float4(v, s, h, 1.0f);
 }
 
 technique Draw
