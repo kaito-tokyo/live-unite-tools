@@ -10,9 +10,6 @@ vcpkg_from_github(
 )
 vcpkg_find_acquire_program(PKGCONFIG)
 
-string(APPEND VCPKG_C_FLAGS " -DTESSERACT_DISABLE_DEBUG_FONTS")
-string(APPEND VCPKG_CXX_FLAGS " -DTESSERACT_DISABLE_DEBUG_FONTS")
-
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}"
     OPTIONS

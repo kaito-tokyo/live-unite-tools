@@ -21,11 +21,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <atomic>
 #include <cstdint>
 
-#include <net.h>
+#include <ncnn/net.h>
 
 #include "BridgeUtils/AsyncTextureReader.hpp"
 #include "BridgeUtils/GsUnique.hpp"
 #include "BridgeUtils/ILogger.hpp"
+#include "BridgeUtils/ThrottledTaskQueue.hpp"
 
 #include "../Core/MainEffect.hpp"
 #include "../Core/PluginConfig.hpp"
@@ -55,6 +56,7 @@ private:
 	const BridgeUtils::ILogger &logger;
 	MainEffect mainEffect;
 	std::shared_ptr<WebSocketServer> webSocketServer;
+	BridgeUtils::ThrottledTaskQueue &mainTaskQueue;
 
 public:
 	const std::uint32_t width;
@@ -82,7 +84,8 @@ public:
 public:
 	RenderingContext(obs_source_t *source, const BridgeUtils::ILogger &logger,
 			 BridgeUtils::unique_gs_effect_t gsMainEffect, std::shared_ptr<WebSocketServer> webSocketServer,
-			 PluginConfig pluginConfig, std::uint32_t width, std::uint32_t height);
+			 BridgeUtils::ThrottledTaskQueue &mainTaskQueue, PluginConfig pluginConfig, std::uint32_t width,
+			 std::uint32_t height);
 	~RenderingContext() noexcept;
 
 	void videoTick(float seconds);

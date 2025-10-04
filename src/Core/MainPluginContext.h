@@ -27,6 +27,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <future>
 
 #include "BridgeUtils/ILogger.hpp"
+#include "BridgeUtils/ThrottledTaskQueue.hpp"
 
 #include "PluginConfig.hpp"
 #include "RenderingContext.hpp"
@@ -39,6 +40,7 @@ private:
 	obs_source_t *const source;
 	const BridgeUtils::ILogger &logger;
 	std::shared_future<std::string> latestVersionFuture;
+	BridgeUtils::ThrottledTaskQueue mainTaskQueue;
 
 	std::shared_ptr<RenderingContext> renderingContext;
 
