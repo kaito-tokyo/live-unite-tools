@@ -113,7 +113,6 @@ public:
 
 		gs_matrix_translate3f(-x, -y, 0.0f);
 
-        gs_set_render_target_with_color_space(targetTexture.get(), nullptr, GS_CS_709_EXTENDED);
 		while (gs_effect_loop(gsEffect.get(), "ConvertToGrayscale")) {
 			gs_effect_set_texture(textureImage, sourceTexture.get());
 			gs_draw_sprite(sourceTexture.get(), 0, width, height);
@@ -128,7 +127,6 @@ public:
 
 		gs_matrix_translate3f(-x, -y, 0.0f);
 
-        gs_set_render_target_with_color_space(targetTexture.get(), nullptr, GS_CS_709_EXTENDED);
 		while (gs_effect_loop(gsEffect.get(), "ConvertToHSV")) {
 			gs_effect_set_texture(textureImage, sourceTexture.get());
 			gs_draw_sprite(sourceTexture.get(), 0, width, height);
