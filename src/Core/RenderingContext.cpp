@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cmath>
 
 #include "../WebSocketServer/WebSocketServer.hpp"
+#include "../TesseractReader/MatchTimerReader.hpp"
 
 using namespace KaitoTokyo::BridgeUtils;
 
@@ -62,9 +63,9 @@ RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger
 			   static_cast<std::uint32_t>(pluginConfig.matchTimerRegion.y * height),
 			   static_cast<std::uint32_t>(pluginConfig.matchTimerRegion.width * width) & ~1u,
 			   static_cast<std::uint32_t>(pluginConfig.matchTimerRegion.height * height) & ~1u},
-	  r8MatchTimer(make_unique_gs_texture(matchTimerRegion.width, matchTimerRegion.height, GS_BGRX, 1, nullptr,
+	  hsvxMatchTimer(make_unique_gs_texture(matchTimerRegion.width, matchTimerRegion.height, GS_BGRX, 1, nullptr,
 					      GS_RENDER_TARGET)),
-	  r8MatchTimerReader(matchTimerRegion.width, matchTimerRegion.height, GS_BGRX),
+	  hsvxMatchTimerReader(matchTimerRegion.width, matchTimerRegion.height, GS_BGRX),
 	  contextClassifier(contextClassifierNet)
 {
 	contextClassifierNet.opt.num_threads = 2;
@@ -102,65 +103,40 @@ void RenderingContext::videoRender()
 		videoRenderNewFrame();
 	}
 
+	obs_source_skip_video_filter(source);
+
 	while (gs_effect_loop(mainEffect.gsEffect.get(), "Draw")) {
-		gs_effect_set_texture(mainEffect.textureImage, bgrxSourceImage.get());
-		gs_draw_sprite(bgrxSourceImage.get(), 0, 0, 0);
+		gs_effect_set_texture(mainEffect.textureImage, hsvxMatchTimer.get());
+		gs_draw_sprite(hsvxMatchTimer.get(), 0, 0, 0);
 	}
 
-	// obs_source_skip_video_filter(source);
+
+    const int sizes[]{static_cast<int>(hsvxMatchTimerReader.getWidth()), static_cast<int>(hsvxMatchTimerReader.getHeight())};
+    cv::Mat hsvx_image(2, sizes, CV_8UC4, static_cast<void*>(hsvxMatchTimerReader.getBuffer().data()));
+
+    cv::Mat v_channel_image;
+    cv::extractChannel(hsvx_image, v_channel_image, 2);
+
+    cv::Mat binary_image(v_channel_image);
+    // cv::adaptiveThreshold(v_channel_image, binary_image, 255,
+    //                       cv::ADAPTIVE_THRESH_GAUSSIAN_C,
+    //                       cv::THRESH_BINARY, // 白背景に黒文字なので反転は不要
+    //                       11, 2);
+
+    MatchTimerReader matchTimerReader;
+    std::string matchTime = matchTimerReader.read(binary_image);
+
+    logger.info("Match Time: {}", matchTime);
 }
 
 void RenderingContext::videoRenderNewFrame()
 {
+    hsvxMatchTimerReader.sync();
+
 	mainEffect.drawSource(bgrxSourceImage, source);
-	mainEffect.convertToGrayscale(r8MatchTimer, bgrxSourceImage, static_cast<float>(matchTimerRegion.x),
-				      static_cast<float>(matchTimerRegion.y), matchTimerRegion.width,
-				      matchTimerRegion.height);
-	// bgrxSceneDetectorInputReader.sync();
-	// r8MatchTimerReader.sync();
-	// contextClassifier.process(bgrxSceneDetectorInputReader.getBuffer().data());
-	// // Send inferred class name via WebSocket
-	// if (webSocketServer) {
-	// 	webSocketServer->broadcast(contextClassifier.getInferredClassName());
-	// }
+	mainEffect.convertToHSV(hsvxMatchTimer, bgrxSourceImage, matchTimerRegion.x, matchTimerRegion.y);
 
-	// RenderTargetGuard renderTargetGuard;
-	// TransformStateGuard transformGuard;
-
-	// gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-
-	// if (!obs_source_process_filter_begin(source, GS_BGRX, OBS_ALLOW_DIRECT_RENDERING)) {
-	// 	logger.error("Could not begin processing filter");
-	// 	obs_source_skip_video_filter(source);
-	// 	return;
-	// }
-
-	// const auto &pos = efficientNetRoiPosition;
-	// gs_set_viewport(0, 0, static_cast<int>(EFFICIENTNET_INPUT_WIDTH), static_cast<int>(EFFICIENTNET_INPUT_HEIGHT));
-	// gs_ortho(0.0f, static_cast<float>(EFFICIENTNET_INPUT_WIDTH), 0.0f,
-	// 	 static_cast<float>(EFFICIENTNET_INPUT_HEIGHT), -100.0f, 100.0f);
-	// gs_matrix_identity();
-	// gs_matrix_translate3f(static_cast<float>(pos.left), static_cast<float>(pos.top), 0.0f);
-
-	// gs_set_render_target_with_color_space(bgrxSceneDetectorInput.get(), nullptr, GS_CS_709_EXTENDED);
-
-	// vec4 grayColor{0.5f, 0.5f, 0.5f, 1.0f};
-	// gs_clear(GS_CLEAR_COLOR, &grayColor, 1.0f, 0);
-
-	// obs_source_process_filter_end(source, effect, pos.right - pos.left, pos.bottom - pos.top);
-
-	// {
-	// 	RenderTargetGuard renderTargetGuard;
-	// 	TransformStateGuard transformGuard;
-
-	// 	gs_set_render_target_with_color_space(r8SceneDetectorInput.get(), nullptr, GS_CS_709_EXTENDED);
-	// 	while (gs_effect_loop(mainEffect.gsEffect.get(), "ConvertToGrayscale")) {
-	// 		gs_effect_set_texture(mainEffect.textureImage, r8SceneDetectorInput.get());
-	// 		gs_draw_sprite(r8SceneDetectorInput.get(), 0, 0, 0);
-	// 	}
-	// }
-
-	// bgrxSceneDetectorInputReader.stage(bgrxSceneDetectorInput.get());
+    hsvxMatchTimerReader.stage(hsvxMatchTimer.get());
 }
 
 obs_source_frame *RenderingContext::filterVideo(obs_source_frame *frame)

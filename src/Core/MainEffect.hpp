@@ -40,38 +40,40 @@ inline gs_eparam_t *getEffectParam(const BridgeUtils::unique_gs_effect_t &gsEffe
 
 } // namespace MainEffectDetail
 
-struct TransformStateGuard {
-	TransformStateGuard()
-	{
-		gs_viewport_push();
-		gs_projection_push();
-		gs_matrix_push();
-		gs_blend_state_push();
-	}
-	~TransformStateGuard()
-	{
-		gs_blend_state_push();
-		gs_matrix_pop();
-		gs_projection_pop();
-		gs_viewport_pop();
-	}
-};
-
-struct RenderTargetGuard {
+struct TextureRenderGuard {
 	gs_texture_t *previousRenderTarget;
 	gs_zstencil_t *previousZStencil;
 	gs_color_space previousColorSpace;
 
-	RenderTargetGuard()
+	explicit TextureRenderGuard(BridgeUtils::unique_gs_texture_t &targetTexture)
 		: previousRenderTarget(gs_get_render_target()),
 		  previousZStencil(gs_get_zstencil_target()),
 		  previousColorSpace(gs_get_color_space())
 	{
+        gs_set_render_target_with_color_space(targetTexture.get(), nullptr, GS_CS_709_EXTENDED);
+
+		gs_viewport_push();
+		gs_projection_push();
+		gs_matrix_push();
+		gs_blend_state_push();
+
+        std::uint32_t targetWidth = gs_texture_get_width(targetTexture.get());
+        std::uint32_t targetHeight = gs_texture_get_height(targetTexture.get());
+        gs_set_viewport(0, 0, static_cast<int>(targetWidth), static_cast<int>(targetHeight));
+        gs_ortho(0.0f, static_cast<float>(targetWidth), 0.0f, static_cast<float>(targetHeight), -100.0f,
+                 100.0f);
+        gs_matrix_identity();
+        gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
 	}
 
-	~RenderTargetGuard()
+	~TextureRenderGuard()
 	{
-		gs_set_render_target_with_color_space(previousRenderTarget, previousZStencil, previousColorSpace);
+		gs_blend_state_pop();
+		gs_matrix_pop();
+		gs_projection_pop();
+		gs_viewport_pop();
+
+        gs_set_render_target_with_color_space(previousRenderTarget, previousZStencil, previousColorSpace);
 	}
 };
 
@@ -92,13 +94,11 @@ public:
 	MainEffect &operator=(const MainEffect &) = delete;
 	MainEffect &operator=(MainEffect &&) = delete;
 
-	void drawSource(const BridgeUtils::unique_gs_texture_t &targetTexture, obs_source_t *source) const noexcept
+	void drawSource(BridgeUtils::unique_gs_texture_t &targetTexture, obs_source_t *source) const noexcept
 	{
-		RenderTargetGuard renderTargetGuard;
-		TransformStateGuard transformGuard;
+        TextureRenderGuard renderTargetGuard(targetTexture);
 
 		obs_source_t *target = obs_filter_get_target(source);
-
 		gs_set_render_target_with_color_space(targetTexture.get(), nullptr, GS_CS_709_EXTENDED);
 		while (gs_effect_loop(gsEffect.get(), "Draw")) {
 			obs_source_video_render(target);
@@ -109,19 +109,27 @@ public:
 				BridgeUtils::unique_gs_texture_t &sourceTexture, float x = 0.0f, float y = 0.0f,
 				std::uint32_t width = 0, std::uint32_t height = 0)
 	{
-		RenderTargetGuard renderTargetGuard;
-		TransformStateGuard transformGuard;
+        TextureRenderGuard renderTargetGuard(targetTexture);
 
-		std::uint32_t targetWidth = gs_texture_get_width(targetTexture.get());
-		std::uint32_t targetHeight = gs_texture_get_height(targetTexture.get());
+		gs_matrix_translate3f(-x, -y, 0.0f);
 
-		gs_set_viewport(0, 0, static_cast<int>(targetWidth), static_cast<int>(targetHeight));
-		gs_ortho(0.0f, static_cast<float>(targetWidth), 0.0f, static_cast<float>(targetHeight), -100.0f,
-			 100.0f);
-		gs_matrix_identity();
-		gs_matrix_translate3f(x, y, 0.0f);
-
+        gs_set_render_target_with_color_space(targetTexture.get(), nullptr, GS_CS_709_EXTENDED);
 		while (gs_effect_loop(gsEffect.get(), "ConvertToGrayscale")) {
+			gs_effect_set_texture(textureImage, sourceTexture.get());
+			gs_draw_sprite(sourceTexture.get(), 0, width, height);
+		}
+	}
+
+	void convertToHSV(BridgeUtils::unique_gs_texture_t &targetTexture,
+				BridgeUtils::unique_gs_texture_t &sourceTexture, float x = 0.0f, float y = 0.0f,
+				std::uint32_t width = 0, std::uint32_t height = 0)
+	{
+        TextureRenderGuard renderTargetGuard(targetTexture);
+
+		gs_matrix_translate3f(-x, -y, 0.0f);
+
+        gs_set_render_target_with_color_space(targetTexture.get(), nullptr, GS_CS_709_EXTENDED);
+		while (gs_effect_loop(gsEffect.get(), "ConvertToHSV")) {
 			gs_effect_set_texture(textureImage, sourceTexture.get());
 			gs_draw_sprite(sourceTexture.get(), 0, width, height);
 		}

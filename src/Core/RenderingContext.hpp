@@ -70,8 +70,8 @@ public:
 
 	const RenderingContextRegion matchTimerRegion;
 
-	BridgeUtils::unique_gs_texture_t r8MatchTimer;
-	BridgeUtils::AsyncTextureReader r8MatchTimerReader;
+	BridgeUtils::unique_gs_texture_t hsvxMatchTimer;
+	BridgeUtils::AsyncTextureReader hsvxMatchTimerReader;
 
 	std::uint64_t lastFrameTimestamp = 0;
 	std::atomic<bool> doesNextVideoRenderReceiveNewFrame = false;

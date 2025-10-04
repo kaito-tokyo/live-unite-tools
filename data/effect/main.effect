@@ -50,6 +50,20 @@ float4 PSConvertToGrayscale(VertInOut vert_in) : TARGET
 	return float4(luma, luma, luma, 1.0f);
 }
 
+float4 PSConvertToHSV(VertInOut vert_in) : TARGET
+{
+    float4 c = image.Sample(def_sampler, vert_in.uv);
+    float4 K = float4(0.0f, -1.0f / 3.0f, 2.0f / 3.0f, -1.0f);
+
+    float4 p = lerp(float4(c.bg, K.wz), float4(c.gb, K.xy), step(c.b, c.g));
+    float4 q = lerp(float4(p.xyw, c.r), float4(c.r, p.yzx), step(p.x, c.r));
+
+    float d = q.x - min(q.w, q.y);
+    float e = 1.0e-10;
+
+    return float4(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x, 1.0f);
+}
+
 technique Draw
 {
 	pass
@@ -67,3 +81,13 @@ technique ConvertToGrayscale
 		pixel_shader  = PSConvertToGrayscale(vert_in);
 	}
 }
+
+technique ConvertToHSV
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSConvertToHSV(vert_in);
+	}
+}
+

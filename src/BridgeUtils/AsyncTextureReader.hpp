@@ -195,7 +195,7 @@ public:
      * This operation is lock-free and provides immediate access to the most recently synced frame.
      * @return A constant reference to the active pixel data buffer.
      */
-	const std::vector<std::uint8_t> &getBuffer() const noexcept
+	std::vector<std::uint8_t> &getBuffer() noexcept
 	{
 		return cpuBuffers[activeCpuBufferIndex.load(std::memory_order_acquire)];
 	}

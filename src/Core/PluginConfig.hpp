@@ -29,7 +29,7 @@ struct PluginConfigRegion {
 };
 
 struct PluginConfig {
-	PluginConfigRegion matchTimerRegion = {800.0 / 1920.0, 20.0 / 1080.0, 320.0 / 1920.0, 100.0 / 1080.0};
+	PluginConfigRegion matchTimerRegion = {900.0 / 1920.0, 10.0 / 1080.0, 110.0 / 1920.0, 60.0 / 1080.0};
 };
 
 } // namespace LiveUniteTools

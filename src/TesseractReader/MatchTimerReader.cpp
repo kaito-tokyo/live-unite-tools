@@ -16,27 +16,34 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#pragma once
+#include "MatchTimerReader.hpp"
 
-#include <cstdint>
-#include <string>
+#include "../BridgeUtils/ObsUnique.hpp"
 
-#include <tesseract/baseapi.h>
-#include <opencv2/core.hpp>
+using namespace KaitoTokyo::BridgeUtils;
 
 namespace KaitoTokyo {
 namespace LiveUniteTools {
 
-class MatchTimerReader {
-private:
-    tesseract::TessBaseAPI api;
+MatchTimerReader::MatchTimerReader() {
+    unique_bfree_char_t tessdataPath = unique_obs_module_file("tessdata");
+    if (api.Init(tessdataPath.get(), "eng")) {
+        throw std::runtime_error("Could not initialize tesseract.");
+    }
 
-public:
-	MatchTimerReader();
-	~MatchTimerReader() noexcept;
+    api.SetPageSegMode(tesseract::PSM_SINGLE_LINE);
+    api.SetVariable("tessedit_char_whitelist", "0123456789:");
+}
 
-	std::string read(cv::Mat &lumaData);
-};
+MatchTimerReader::~MatchTimerReader() noexcept try {
+    api.End();
+} catch (...) {
+}
+
+std::string MatchTimerReader::read(cv::Mat &lumaData) {
+    api.SetImage(lumaData.data, lumaData.cols, lumaData.rows, 1, lumaData.step);
+    return api.GetUTF8Text();
+}
 
 } // namespace LiveUniteTools
 } // namespace KaitoTokyo
