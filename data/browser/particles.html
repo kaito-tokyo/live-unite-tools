@@ -35,10 +35,10 @@
       color: { value: "#ffd700" },
       shape: { type: "circle" },
       opacity: { value: 0.5 },
-      size: { value: { min: 20, max: 100 } }, // ▼ サイズを変更
+      size: { value: { min: 40, max: 200 } }, // ▼ サイズを変更
       move: {
         enable: true,
-        speed: 0.5,
+        speed: 15,
         direction: "none",
         random: true,
         straight: false,
@@ -49,33 +49,24 @@
 
   // --- ▽ 設定2：攻撃時 (Attacking) ▽ ---
   const attackingOptions = {
-    fpsLimit: 60,
+    fpsLimit: 30,
     particles: {
-      number: { value: 0 },
+      number: {
+        value: 20, // ▼ 数を調整 (80 -> 10)
+        density: { enable: true },
+      },
       color: { value: "#ff0000" },
       shape: { type: "circle" },
-      opacity: { value: 1 },
-      size: { value: { min: 20, max: 100 } }, // ▼ サイズを変更
+      opacity: { value: 0.4 },
+      size: { value: { min: 40, max: 200 } }, // ▼ サイズを変更
       move: {
         enable: true,
-        speed: 15,
-        direction: "right",
-        random: false,
-        straight: true,
-        out_mode: "destroy",
-        trail: {
-          enable: true,
-          fillColor: "#111111",
-          length: 5,
-        },
+        speed: 45,
+        direction: "none",
+        random: true,
+        straight: false,
+        out_mode: "bounce",
       },
-    },
-    background: { color: "#111111" },
-    emitters: {
-      direction: "right",
-      position: { x: 0, y: 50 },
-      size: { width: 0, height: 100 },
-      rate: { delay: 0.1, quantity: 1 }, // ▼ 射出頻度を調整
     },
   };
 
@@ -84,13 +75,13 @@
     fpsLimit: 30,
     particles: {
       number: {
-        value: 10, // ▼ 数を調整 (80 -> 10)
+        value: 30, // ▼ 数を調整 (80 -> 10)
         density: { enable: true },
       },
       color: { value: "#00bfff" },
       shape: { type: "triangle" },
       opacity: { value: 0.6 },
-      size: { value: { min: 20, max: 100 } }, // ▼ サイズを変更
+      size: { value: { min: 40, max: 200 } }, // ▼ サイズを変更
       links: {
         enable: true,
         distance: 250, // 距離も調整
@@ -100,88 +91,71 @@
       },
       move: {
         enable: true,
-        speed: 1,
+        speed: 30,
         direction: "none",
         random: true,
         straight: false,
         out_mode: "bounce",
       },
     },
-    background: { color: "#000020" }
   };
 
       (async () => {
         await loadFull(tsParticles);
 
+        // --- 状態管理 ---
+        const animationOrder = ["Stalemate", "ScoringAttempt", "GoalDefense"];
+        let animationIndex = 0;
+        let activeAnimation = "Stalemate";
+        let targetAnimation = "Stalemate";
+        let lockTimeout = null;
+
         await tsParticles.load({
           id: "tsparticles",
           options: stalemateOptions,
         });
-        // --- 状態を管理するための変数 ---
 
-        // 現在、画面に表示されているアニメーションの種類 ("ScoringAttempt", "GoalDefense", etc.)
-        let activeAnimation = null;
-        // WebSocketから最後に受信したメッセージの種類
-        let targetAnimation = null;
-        // アニメーションをロックするためのタイマーID
-        let lockTimeout = null;
+        // クリックで切り替え
+        document.getElementById("tsparticles").addEventListener("click", () => {
+          if (lockTimeout) return;
+          animationIndex = (animationIndex + 1) % animationOrder.length;
+          targetAnimation = animationOrder[animationIndex];
+          attemptToUpdateAnimation(true);
+        });
 
+        // WebSocket
         const so = new WebSocket("ws://localhost:54834");
-
-        // WebSocketからメッセージを受信したときの処理
         so.onmessage = (msg) => {
-          // 常に最新のメッセージを targetAnimation として保持
           targetAnimation = msg.data;
-          // アニメーションの切り替えを試みる
-          attemptToUpdateAnimation();
+          attemptToUpdateAnimation(false);
         };
 
-        // アニメーションの更新を試みるメインの関数
-        function attemptToUpdateAnimation() {
-          // 1. ロック中（タイマーが作動中）の場合は、何もしない
-          //    タイマーが終了したときに、再度この関数が呼ばれるのを待つ
-          if (lockTimeout) {
-            return;
-          }
+        // アニメーション切り替え
+        function attemptToUpdateAnimation(isManual) {
+          if (lockTimeout) return;
+          if (targetAnimation === activeAnimation) return;
 
-          // 2. 表示したいアニメーションが、すでに表示中のものと同じ場合は何もしない
-          if (targetAnimation === activeAnimation) {
-            return;
-          }
-
-          // 3. 表示するアニメーションを決定する
           let options;
-          let duration = 2000; // このアニメーションの最低持続時間
-
+          let duration = 2000;
           switch (targetAnimation) {
             case "ScoringAttempt":
               options = attackingOptions;
-              duration = 2000; // 2秒
+              duration = 2000;
               break;
             case "GoalDefense":
               options = defendingOptions;
-              duration = 2000; // 2秒
+              duration = 2000;
               break;
             default:
               options = stalemateOptions;
               break;
           }
-
-          // 4. アニメーションを読み込む
-          tsParticles.load({
-            id: "tsparticles",
-            options: options,
-          });
-
-          // 5. 現在表示中のアニメーションとして記録
+          tsParticles.load({ id: "tsparticles", options });
           activeAnimation = targetAnimation;
-
-          // 6. 最低持続時間が設定されている場合、ロックを開始する
           if (duration > 0) {
             lockTimeout = setTimeout(() => {
-              lockTimeout = null; // タイマーが終了したのでIDをクリア
-              // ロックが解除されたので、最新のメッセージ状態を反映させるために再度更新を試みる
-              attemptToUpdateAnimation();
+              lockTimeout = null;
+              attemptToUpdateAnimation(false);
             }, duration);
           }
         }

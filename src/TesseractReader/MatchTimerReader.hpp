@@ -32,7 +32,7 @@ private:
 	tesseract::TessBaseAPI api;
 
 public:
-	MatchTimerReader();
+	MatchTimerReader(const char *tessdataPath);
 	~MatchTimerReader() noexcept;
 
 	std::string read(cv::Mat &lumaData);

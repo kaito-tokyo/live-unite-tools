@@ -18,8 +18,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #pragma once
 
+#include <array>
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
+#include <vector>
 
 #include <ncnn/net.h>
 
@@ -59,6 +62,7 @@ private:
 	BridgeUtils::ThrottledTaskQueue &mainTaskQueue;
 
 public:
+	const long long captureFps;
 	const std::uint32_t width;
 	const std::uint32_t height;
 	const PluginConfig pluginConfig;
@@ -72,8 +76,12 @@ public:
 
 	const RenderingContextRegion matchTimerRegion;
 
-	BridgeUtils::unique_gs_texture_t hsvxMatchTimer;
+	std::array<BridgeUtils::unique_gs_texture_t, 5> hsvxMatchTimerHistory;
+	std::size_t hsvxMatchTimerHistoryIndex = 0;
 	BridgeUtils::AsyncTextureReader hsvxMatchTimerReader;
+
+	BridgeUtils::unique_gs_texture_t r8MedianMatchTimer;
+	BridgeUtils::AsyncTextureReader r8MedianMatchTimerReader;
 
 	std::uint64_t lastFrameTimestamp = 0;
 	std::atomic<bool> doesNextVideoRenderReceiveNewFrame = false;
@@ -84,8 +92,8 @@ public:
 public:
 	RenderingContext(obs_source_t *source, const BridgeUtils::ILogger &logger,
 			 BridgeUtils::unique_gs_effect_t gsMainEffect, std::shared_ptr<WebSocketServer> webSocketServer,
-			 BridgeUtils::ThrottledTaskQueue &mainTaskQueue, PluginConfig pluginConfig, std::uint32_t width,
-			 std::uint32_t height);
+			 BridgeUtils::ThrottledTaskQueue &mainTaskQueue, PluginConfig pluginConfig,
+			 long long captureFps, std::uint32_t width, std::uint32_t height);
 	~RenderingContext() noexcept;
 
 	void videoTick(float seconds);

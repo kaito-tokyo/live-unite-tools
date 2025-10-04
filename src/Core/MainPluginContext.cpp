@@ -69,7 +69,10 @@ std::uint32_t MainPluginContext::getHeight() const noexcept
 	return renderingContext ? renderingContext->height : 0;
 }
 
-void MainPluginContext::getDefaults(obs_data_t *) {}
+void MainPluginContext::getDefaults(obs_data_t *data)
+{
+	obs_data_set_default_int(data, "captureFps", 30);
+}
 
 obs_properties_t *MainPluginContext::getProperties()
 {
@@ -84,7 +87,10 @@ obs_properties_t *MainPluginContext::getProperties()
 	return props;
 }
 
-void MainPluginContext::update(obs_data_t *) {}
+void MainPluginContext::update(obs_data_t *settings)
+{
+	captureFps = obs_data_get_int(settings, "captureFps");
+}
 
 void MainPluginContext::activate() {}
 
@@ -157,7 +163,8 @@ std::shared_ptr<RenderingContext> MainPluginContext::makeRenderingContext(std::u
 	PluginConfig defaultConfig;
 
 	return std::make_shared<RenderingContext>(source, logger, std::move(gsMainEffect), std::move(webSocketServer),
-						  mainTaskQueue, std::move(defaultConfig), targetWidth, targetHeight);
+						  mainTaskQueue, std::move(defaultConfig), captureFps, targetWidth,
+						  targetHeight);
 }
 
 } // namespace LiveUniteTools

@@ -18,17 +18,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "MatchTimerReader.hpp"
 
-#include "../BridgeUtils/ObsUnique.hpp"
-
-using namespace KaitoTokyo::BridgeUtils;
+#include <algorithm>
+#include <cctype>
+#include <memory>
+#include <regex>
 
 namespace KaitoTokyo {
 namespace LiveUniteTools {
 
-MatchTimerReader::MatchTimerReader()
+MatchTimerReader::MatchTimerReader(const char *tessdataPath)
 {
-	unique_bfree_char_t tessdataPath = unique_obs_module_file("tessdata");
-	if (api.Init(tessdataPath.get(), "eng")) {
+	if (api.Init(tessdataPath, "eng")) {
 		throw std::runtime_error("Could not initialize tesseract.");
 	}
 
@@ -46,7 +46,27 @@ std::string MatchTimerReader::read(cv::Mat &lumaData)
 {
 	api.SetImage(lumaData.data, static_cast<int>(lumaData.cols), static_cast<int>(lumaData.rows), 1,
 		     static_cast<int>(lumaData.step));
-	return api.GetUTF8Text();
+
+	std::unique_ptr<char[]> outText(api.GetUTF8Text());
+
+	if (!outText) {
+		return "";
+	}
+
+	std::string rawText = outText.get();
+
+	std::string cleanedText = rawText;
+	cleanedText.erase(std::remove_if(cleanedText.begin(), cleanedText.end(),
+					 [](unsigned char c) { return std::isspace(c); }),
+			  cleanedText.end());
+
+	const std::regex timer_pattern(R"(^0\d:\d{2}$)");
+
+	if (std::regex_match(cleanedText, timer_pattern)) {
+		return cleanedText;
+	} else {
+		return "";
+	}
 }
 
 } // namespace LiveUniteTools
