@@ -18,6 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #pragma once
 
+#include <array>
+
 #include <obs.h>
 
 #include "BridgeUtils/GsUnique.hpp"
@@ -82,10 +84,20 @@ public:
 	const BridgeUtils::unique_gs_effect_t gsEffect;
 
 	gs_eparam_t *const textureImage;
+	gs_eparam_t *const textureImage0;
+	gs_eparam_t *const textureImage1;
+	gs_eparam_t *const textureImage2;
+	gs_eparam_t *const textureImage3;
+	gs_eparam_t *const textureImage4;
 
 	explicit MainEffect(BridgeUtils::unique_gs_effect_t _gsEffect)
 		: gsEffect(std::move(_gsEffect)),
-		  textureImage(MainEffectDetail::getEffectParam(gsEffect, "image"))
+		  textureImage(MainEffectDetail::getEffectParam(gsEffect, "image")),
+		  textureImage0(MainEffectDetail::getEffectParam(gsEffect, "image0")),
+		  textureImage1(MainEffectDetail::getEffectParam(gsEffect, "image1")),
+		  textureImage2(MainEffectDetail::getEffectParam(gsEffect, "image2")),
+		  textureImage3(MainEffectDetail::getEffectParam(gsEffect, "image3")),
+		  textureImage4(MainEffectDetail::getEffectParam(gsEffect, "image4"))
 	{
 	}
 
@@ -130,6 +142,21 @@ public:
 		while (gs_effect_loop(gsEffect.get(), "ConvertToHSV")) {
 			gs_effect_set_texture(textureImage, sourceTexture.get());
 			gs_draw_sprite(sourceTexture.get(), 0, width, height);
+		}
+	}
+
+	void medianFiltering5(BridgeUtils::unique_gs_texture_t &targetTexture,
+			      std::array<BridgeUtils::unique_gs_texture_t, 5> &sourceTextures)
+	{
+		TextureRenderGuard renderTargetGuard(targetTexture);
+
+		while (gs_effect_loop(gsEffect.get(), "MedianFiltering5")) {
+			gs_effect_set_texture(textureImage0, sourceTextures[0].get());
+			gs_effect_set_texture(textureImage1, sourceTextures[1].get());
+			gs_effect_set_texture(textureImage2, sourceTextures[2].get());
+			gs_effect_set_texture(textureImage3, sourceTextures[3].get());
+			gs_effect_set_texture(textureImage4, sourceTextures[4].get());
+			gs_draw_sprite(sourceTextures[0].get(), 0, 0, 0);
 		}
 	}
 };

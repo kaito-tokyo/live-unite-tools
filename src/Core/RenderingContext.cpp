@@ -35,13 +35,14 @@ constexpr std::uint32_t EFFICIENTNET_INPUT_HEIGHT = 224;
 
 RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger, unique_gs_effect_t gsMainEffect,
 				   std::shared_ptr<WebSocketServer> _webSocketServer,
-				   ThrottledTaskQueue &_mainTaskQueue, PluginConfig _pluginConfig, std::uint32_t _width,
-				   std::uint32_t _height)
+				   ThrottledTaskQueue &_mainTaskQueue, PluginConfig _pluginConfig,
+				   long long _captureFps, std::uint32_t _width, std::uint32_t _height)
 	: source(_source),
 	  logger(_logger),
 	  mainEffect(std::move(gsMainEffect)),
 	  webSocketServer(std::move(_webSocketServer)),
 	  mainTaskQueue(_mainTaskQueue),
+	  captureFps(_captureFps),
 	  width(_width),
 	  height(_height),
 	  pluginConfig(_pluginConfig),
@@ -67,9 +68,20 @@ RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger
 			   static_cast<std::uint32_t>(pluginConfig.matchTimerRegion.y * height),
 			   static_cast<std::uint32_t>(pluginConfig.matchTimerRegion.width * width) & ~1u,
 			   static_cast<std::uint32_t>(pluginConfig.matchTimerRegion.height * height) & ~1u},
-	  hsvxMatchTimer(make_unique_gs_texture(matchTimerRegion.width, matchTimerRegion.height, GS_BGRX, 1, nullptr,
-						GS_RENDER_TARGET)),
+	  hsvxMatchTimerHistory{BridgeUtils::make_unique_gs_texture(matchTimerRegion.width, matchTimerRegion.height,
+								    GS_BGRX, 1, nullptr, GS_RENDER_TARGET),
+				BridgeUtils::make_unique_gs_texture(matchTimerRegion.width, matchTimerRegion.height,
+								    GS_BGRX, 1, nullptr, GS_RENDER_TARGET),
+				BridgeUtils::make_unique_gs_texture(matchTimerRegion.width, matchTimerRegion.height,
+								    GS_BGRX, 1, nullptr, GS_RENDER_TARGET),
+				BridgeUtils::make_unique_gs_texture(matchTimerRegion.width, matchTimerRegion.height,
+								    GS_BGRX, 1, nullptr, GS_RENDER_TARGET),
+				BridgeUtils::make_unique_gs_texture(matchTimerRegion.width, matchTimerRegion.height,
+								    GS_BGRX, 1, nullptr, GS_RENDER_TARGET)},
 	  hsvxMatchTimerReader(matchTimerRegion.width, matchTimerRegion.height, GS_BGRX),
+	  r8MedianMatchTimer(make_unique_gs_texture(matchTimerRegion.width, matchTimerRegion.height, GS_R8, 1, nullptr,
+						    GS_RENDER_TARGET)),
+	  r8MedianMatchTimerReader(matchTimerRegion.width, matchTimerRegion.height, GS_R8),
 	  contextClassifier(contextClassifierNet)
 {
 	contextClassifierNet.opt.num_threads = 2;
@@ -126,12 +138,44 @@ void RenderingContext::videoRender()
 void RenderingContext::videoRenderNewFrame()
 {
 	hsvxMatchTimerReader.sync();
+	r8MedianMatchTimerReader.sync();
+
+	mainTaskQueue.push([self = shared_from_this()](const ThrottledTaskQueue::CancellationToken &token) {
+		if (token->load()) {
+			return;
+		}
+
+		auto &r8MedianMatchTimerReader = self->r8MedianMatchTimerReader;
+
+		cv::Mat medianMatchTimerImage(r8MedianMatchTimerReader.getHeight(), r8MedianMatchTimerReader.getWidth(),
+					      CV_8UC1,
+					      static_cast<void *>(r8MedianMatchTimerReader.getBuffer().data()));
+
+		cv::Mat invertedImage;
+		cv::bitwise_not(medianMatchTimerImage, invertedImage);
+
+		cv::Mat binaryImage;
+		cv::threshold(invertedImage, binaryImage, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
+
+        unique_bfree_char_t tessdataPath = unique_obs_module_file("tessdata");
+		MatchTimerReader matchTimerReader(tessdataPath.get());
+		std::string matchTime = matchTimerReader.read(binaryImage);
+
+		self->logger.info("Match Time: {}", matchTime);
+	});
 
 	mainEffect.drawSource(bgrxSourceImage, source);
-	mainEffect.convertToHSV(hsvxMatchTimer, bgrxSourceImage, static_cast<float>(matchTimerRegion.x),
+
+	hsvxMatchTimerHistoryIndex = (hsvxMatchTimerHistoryIndex + 1) % hsvxMatchTimerHistory.size();
+	auto &hsvxCurrentMatchTimer = hsvxMatchTimerHistory[hsvxMatchTimerHistoryIndex];
+
+	mainEffect.convertToHSV(hsvxCurrentMatchTimer, bgrxSourceImage, static_cast<float>(matchTimerRegion.x),
 				static_cast<float>(matchTimerRegion.y));
 
-	hsvxMatchTimerReader.stage(hsvxMatchTimer.get());
+	mainEffect.medianFiltering5(r8MedianMatchTimer, hsvxMatchTimerHistory);
+
+	hsvxMatchTimerReader.stage(hsvxCurrentMatchTimer.get());
+	r8MedianMatchTimerReader.stage(r8MedianMatchTimer.get());
 }
 
 obs_source_frame *RenderingContext::filterVideo(obs_source_frame *frame)

@@ -19,28 +19,35 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 uniform float4x4 ViewProj;
 uniform texture2d image;
 
-sampler_state def_sampler {
-	Filter   = Linear;
+uniform texture2d image0;
+uniform texture2d image1;
+uniform texture2d image2;
+uniform texture2d image3;
+uniform texture2d image4;
+
+sampler_state def_sampler
+{
+	Filter = Linear;
 	AddressU = Clamp;
 	AddressV = Clamp;
 };
 
 struct VertInOut {
 	float4 pos : POSITION;
-	float2 uv  : TEXCOORD0;
+	float2 uv : TEXCOORD0;
 };
 
 VertInOut VSDefault(VertInOut vert_in)
 {
 	VertInOut vert_out;
 	vert_out.pos = mul(float4(vert_in.pos.xyz, 1.0), ViewProj);
-	vert_out.uv  = vert_in.uv;
+	vert_out.uv = vert_in.uv;
 	return vert_out;
 }
 
 float4 PSDraw(VertInOut vert_in) : TARGET
 {
-    return image.Sample(def_sampler, vert_in.uv);
+	return image.Sample(def_sampler, vert_in.uv);
 }
 
 float4 PSConvertToGrayscale(VertInOut vert_in) : TARGET
@@ -52,20 +59,49 @@ float4 PSConvertToGrayscale(VertInOut vert_in) : TARGET
 
 float4 PSConvertToHSV(VertInOut vert_in) : TARGET
 {
-    float4 c = image.Sample(def_sampler, vert_in.uv);
-    float4 K = float4(0.0f, -1.0f / 3.0f, 2.0f / 3.0f, -1.0f);
+	float4 c = image.Sample(def_sampler, vert_in.uv);
+	float4 K = float4(0.0f, -1.0f / 3.0f, 2.0f / 3.0f, -1.0f);
 
-    float4 p = lerp(float4(c.bg, K.wz), float4(c.gb, K.xy), step(c.b, c.g));
-    float4 q = lerp(float4(p.xyw, c.r), float4(c.r, p.yzx), step(p.x, c.r));
+	float4 p = lerp(float4(c.bg, K.wz), float4(c.gb, K.xy), step(c.b, c.g));
+	float4 q = lerp(float4(p.xyw, c.r), float4(c.r, p.yzx), step(p.x, c.r));
 
-    float d = q.x - min(q.w, q.y);
-    float e = 1.0e-10;
+	float d = q.x - min(q.w, q.y);
+	float e = 1.0e-10;
 
-    float h = abs(q.z + (q.w - q.y) / (6.0 * d + e));
-    float s = d / (q.x + e);
-    float v = q.x;
+	float h = abs(q.z + (q.w - q.y) / (6.0 * d + e));
+	float s = d / (q.x + e);
+	float v = q.x;
 
-    return float4(v, s, h, 1.0f);
+	return float4(v, s, h, 1.0f);
+}
+
+#define MEDIAN_SWAP(a, b) { float temp=a; a=min(a,b); b=max(temp,b); }
+
+float median5(float v0, float v1, float v2, float v3, float v4)
+{
+	MEDIAN_SWAP(v0, v1);
+	MEDIAN_SWAP(v3, v4);
+	MEDIAN_SWAP(v0, v3);
+	MEDIAN_SWAP(v1, v4);
+	MEDIAN_SWAP(v1, v2);
+	MEDIAN_SWAP(v2, v3);
+	MEDIAN_SWAP(v1, v2);
+	return v2;
+}
+
+float4 PSMedianFiltering5(VertInOut vert_in) : TARGET
+{
+	float2 uv = vert_in.uv;
+
+	float v0 = image0.Sample(def_sampler, uv).r;
+	float v1 = image1.Sample(def_sampler, uv).r;
+	float v2 = image2.Sample(def_sampler, uv).r;
+	float v3 = image3.Sample(def_sampler, uv).r;
+	float v4 = image4.Sample(def_sampler, uv).r;
+
+	float v = median5(v0, v1, v2, v3, v4);
+
+	return float4(v, v, v, 1.0f);
 }
 
 technique Draw
@@ -73,7 +109,7 @@ technique Draw
 	pass
 	{
 		vertex_shader = VSDefault(vert_in);
-		pixel_shader  = PSDraw(vert_in);
+		pixel_shader = PSDraw(vert_in);
 	}
 }
 
@@ -82,7 +118,7 @@ technique ConvertToGrayscale
 	pass
 	{
 		vertex_shader = VSDefault(vert_in);
-		pixel_shader  = PSConvertToGrayscale(vert_in);
+		pixel_shader = PSConvertToGrayscale(vert_in);
 	}
 }
 
@@ -91,7 +127,15 @@ technique ConvertToHSV
 	pass
 	{
 		vertex_shader = VSDefault(vert_in);
-		pixel_shader  = PSConvertToHSV(vert_in);
+		pixel_shader = PSConvertToHSV(vert_in);
 	}
 }
 
+technique MedianFiltering5
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader = PSMedianFiltering5(vert_in);
+	}
+}

@@ -42,6 +42,7 @@ private:
 	std::shared_future<std::string> latestVersionFuture;
 	BridgeUtils::ThrottledTaskQueue mainTaskQueue;
 
+	long long captureFps;
 	std::shared_ptr<RenderingContext> renderingContext;
 
 public:
