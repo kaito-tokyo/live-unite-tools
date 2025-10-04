@@ -99,17 +99,18 @@ void RenderingContext::videoTick(float)
 {
 	doesNextVideoRenderReceiveNewFrame = true;
 
-    mainTaskQueue.push([self = shared_from_this()](const ThrottledTaskQueue::CancellationToken &token) {
-        if (token->load()) {
-            return;
-        }
+	mainTaskQueue.push([self = shared_from_this()](const ThrottledTaskQueue::CancellationToken &token) {
+		if (token->load()) {
+			return;
+		}
 
-        auto &hsvxMatchTimerReader = self->hsvxMatchTimerReader;
+		auto &hsvxMatchTimerReader = self->hsvxMatchTimerReader;
 
-        cv::Mat hsvxMatchTimerImage(hsvxMatchTimerReader.getHeight(), hsvxMatchTimerReader.getWidth(), CV_8UC4, static_cast<void *>(hsvxMatchTimerReader.getBuffer().data()));
-        cv::Mat vMatchTimerImage;
-        cv::extractChannel(hsvx_image, v_channel_image, 2);
-    });
+		cv::Mat hsvxMatchTimerImage(hsvxMatchTimerReader.getHeight(), hsvxMatchTimerReader.getWidth(), CV_8UC4,
+					    static_cast<void *>(hsvxMatchTimerReader.getBuffer().data()));
+		cv::Mat vMatchTimerImage;
+		cv::extractChannel(hsvxMatchTimerImage, vMatchTimerImage, 2);
+	});
 }
 
 void RenderingContext::videoRender()
@@ -119,66 +120,7 @@ void RenderingContext::videoRender()
 		videoRenderNewFrame();
 	}
 
-	// obs_source_skip_video_filter(source);
-
-	while (gs_effect_loop(mainEffect.gsEffect.get(), "Draw")) {
-		gs_effect_set_texture(mainEffect.textureImage, hsvxMatchTimer.get());
-		gs_draw_sprite(hsvxMatchTimer.get(), 0, 0, 0);
-	}
-
-	const int sizes[]{static_cast<int>(hsvxMatchTimerReader.getHeight()),
-			  static_cast<int>(hsvxMatchTimerReader.getWidth())};
-	cv::Mat hsvx_image(2, sizes, CV_8UC4, static_cast<void *>(hsvxMatchTimerReader.getBuffer().data()));
-
-	static std::deque<cv::Mat> v_channel_history;
-	cv::Mat v_channel_image;
-	cv::extractChannel(hsvx_image, v_channel_image, 2);
-
-	// Keep last 5 frames
-	v_channel_history.push_back(v_channel_image.clone());
-	if (v_channel_history.size() > 5) {
-		v_channel_history.pop_front();
-	}
-
-	cv::Mat median_image = v_channel_image.clone();
-	if (v_channel_history.size() == 5) {
-		std::vector<cv::Mat> mats(v_channel_history.begin(), v_channel_history.end());
-		cv::Mat stacked;
-		cv::merge(mats, stacked); // shape: H x W x 5
-		median_image = cv::Mat(v_channel_image.size(), v_channel_image.type());
-		for (int y = 0; y < stacked.rows; ++y) {
-			for (int x = 0; x < stacked.cols; ++x) {
-				std::array<uchar, 5> vals;
-				for (int k = 0; k < 5; ++k) {
-					vals[k] = stacked.at<cv::Vec<uchar, 5>>(y, x)[k];
-				}
-				std::sort(vals.begin(), vals.end());
-				median_image.at<uchar>(y, x) = vals[2];
-			}
-		}
-	}
-
-	cv::Mat inverted_image;
-	cv::bitwise_not(median_image, inverted_image);
-
-	cv::Mat binary_image;
-
-	cv::threshold(inverted_image, binary_image, 128, 255, cv::THRESH_BINARY);
-
-	const std::uint8_t *planarData[] = {inverted_image.data};
-
-	unique_gs_texture_t r8MatchTimerDebug =
-		make_unique_gs_texture(matchTimerRegion.width, matchTimerRegion.height, GS_R8, 1, planarData, 0);
-
-	while (gs_effect_loop(mainEffect.gsEffect.get(), "Draw")) {
-		gs_effect_set_texture(mainEffect.textureImage, r8MatchTimerDebug.get());
-		gs_draw_sprite(r8MatchTimerDebug.get(), 0, 0, 0);
-	}
-
-	MatchTimerReader matchTimerReader;
-	std::string matchTime = matchTimerReader.read(binary_image);
-
-	logger.info("Match Time: {}", matchTime);
+	obs_source_skip_video_filter(source);
 }
 
 void RenderingContext::videoRenderNewFrame()
