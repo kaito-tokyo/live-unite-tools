@@ -110,8 +110,8 @@ void RenderingContext::videoRender()
 		gs_draw_sprite(hsvxMatchTimer.get(), 0, 0, 0);
 	}
 
-	const int sizes[]{static_cast<int>(hsvxMatchTimerReader.getWidth()),
-			  static_cast<int>(hsvxMatchTimerReader.getHeight())};
+	const int sizes[]{static_cast<int>(hsvxMatchTimerReader.getHeight()),
+			  static_cast<int>(hsvxMatchTimerReader.getWidth())};
 	cv::Mat hsvx_image(2, sizes, CV_8UC4, static_cast<void *>(hsvxMatchTimerReader.getBuffer().data()));
 
 	cv::Mat v_channel_image;
