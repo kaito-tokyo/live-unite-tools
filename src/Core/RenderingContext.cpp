@@ -34,12 +34,14 @@ constexpr std::uint32_t EFFICIENTNET_INPUT_WIDTH = 224;
 constexpr std::uint32_t EFFICIENTNET_INPUT_HEIGHT = 224;
 
 RenderingContext::RenderingContext(obs_source_t *_source, const ILogger &_logger, unique_gs_effect_t gsMainEffect,
-				   std::shared_ptr<WebSocketServer> _webSocketServer, PluginConfig _pluginConfig,
-				   std::uint32_t _width, std::uint32_t _height)
+				   std::shared_ptr<WebSocketServer> _webSocketServer,
+				   ThrottledTaskQueue &_mainTaskQueue, PluginConfig _pluginConfig, std::uint32_t _width,
+				   std::uint32_t _height)
 	: source(_source),
 	  logger(_logger),
 	  mainEffect(std::move(gsMainEffect)),
 	  webSocketServer(std::move(_webSocketServer)),
+	  mainTaskQueue(_mainTaskQueue),
 	  width(_width),
 	  height(_height),
 	  pluginConfig(_pluginConfig),
@@ -96,6 +98,18 @@ RenderingContext::~RenderingContext() noexcept {}
 void RenderingContext::videoTick(float)
 {
 	doesNextVideoRenderReceiveNewFrame = true;
+
+    mainTaskQueue.push([self = shared_from_this()](const ThrottledTaskQueue::CancellationToken &token) {
+        if (token->load()) {
+            return;
+        }
+
+        auto &hsvxMatchTimerReader = self->hsvxMatchTimerReader;
+
+        cv::Mat hsvxMatchTimerImage(hsvxMatchTimerReader.getHeight(), hsvxMatchTimerReader.getWidth(), CV_8UC4, static_cast<void *>(hsvxMatchTimerReader.getBuffer().data()));
+        cv::Mat vMatchTimerImage;
+        cv::extractChannel(hsvx_image, v_channel_image, 2);
+    });
 }
 
 void RenderingContext::videoRender()
@@ -115,7 +129,6 @@ void RenderingContext::videoRender()
 	const int sizes[]{static_cast<int>(hsvxMatchTimerReader.getHeight()),
 			  static_cast<int>(hsvxMatchTimerReader.getWidth())};
 	cv::Mat hsvx_image(2, sizes, CV_8UC4, static_cast<void *>(hsvxMatchTimerReader.getBuffer().data()));
-
 
 	static std::deque<cv::Mat> v_channel_history;
 	cv::Mat v_channel_image;
@@ -137,7 +150,7 @@ void RenderingContext::videoRender()
 			for (int x = 0; x < stacked.cols; ++x) {
 				std::array<uchar, 5> vals;
 				for (int k = 0; k < 5; ++k) {
-					vals[k] = stacked.at<cv::Vec<uchar,5>>(y, x)[k];
+					vals[k] = stacked.at<cv::Vec<uchar, 5>>(y, x)[k];
 				}
 				std::sort(vals.begin(), vals.end());
 				median_image.at<uchar>(y, x) = vals[2];
@@ -145,18 +158,12 @@ void RenderingContext::videoRender()
 		}
 	}
 
-	cv::Mat blurred_image;
-	cv::GaussianBlur(median_image, blurred_image, cv::Size(3, 3), 0);
-
 	cv::Mat inverted_image;
-	cv::bitwise_not(blurred_image, inverted_image);
+	cv::bitwise_not(median_image, inverted_image);
 
 	cv::Mat binary_image;
-	cv::adaptiveThreshold(inverted_image, binary_image, 255,
-			      cv::ADAPTIVE_THRESH_GAUSSIAN_C, // ガウシアンで重み付け
-			      cv::THRESH_BINARY,              // 白を背景、黒を文字に
-			      11,                             // ブロックサイズ (奇数である必要あり。調整推奨)
-			      2);                             // 定数C (閾値から引かれる値。調整推奨)
+
+	cv::threshold(inverted_image, binary_image, 128, 255, cv::THRESH_BINARY);
 
 	const std::uint8_t *planarData[] = {inverted_image.data};
 

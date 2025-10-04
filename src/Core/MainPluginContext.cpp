@@ -44,14 +44,18 @@ MainPluginContext::MainPluginContext(obs_data_t *settings, obs_source_t *_source
 				     const BridgeUtils::ILogger &_logger)
 	: source{_source},
 	  logger(_logger),
-	  latestVersionFuture{_latestVersionFuture}
+	  latestVersionFuture{_latestVersionFuture},
+	  mainTaskQueue(logger, 1)
 {
 	update(settings);
 }
 
 void MainPluginContext::startup() noexcept {}
 
-void MainPluginContext::shutdown() noexcept {}
+void MainPluginContext::shutdown() noexcept
+{
+	mainTaskQueue.shutdown();
+}
 
 MainPluginContext::~MainPluginContext() noexcept {}
 
